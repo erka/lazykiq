@@ -6,6 +6,7 @@ class JobScheduler
   QUEUES = %w[critical default mailers batch low].freeze
   MAX_JOBS_PER_QUEUE = 10_000
   MAX_RETRY_QUEUE = 20_000
+  MAX_SCHEDULED_JOBS = 5_000
   SCHEDULE_BATCH_SIZE = 100
 
   JOB_DEFINITIONS = [
@@ -53,10 +54,12 @@ class JobScheduler
     puts "Starting job scheduler..."
     puts "Max jobs per queue: #{MAX_JOBS_PER_QUEUE}"
     puts "Max retry queue: #{MAX_RETRY_QUEUE}"
+    puts "Max scheduled jobs: #{MAX_SCHEDULED_JOBS}"
     puts "Queues: #{QUEUES.join(', ')}"
 
     while @running
-      schedule_jobs_if_needed
+      maintain_queues
+      maintain_scheduled
       sleep 0.5
     end
   end
@@ -71,7 +74,7 @@ class JobScheduler
     JOB_DEFINITIONS.flat_map { |defn| Array.new(defn[:weight], defn) }
   end
 
-  def schedule_jobs_if_needed
+  def maintain_queues
     retry_size = Sidekiq::RetrySet.new.size
 
     # Pause scheduling if retry queue is too large
@@ -110,5 +113,25 @@ class JobScheduler
     end
 
     puts "[#{Time.now.strftime('%H:%M:%S')}] Scheduled #{count} jobs for queue '#{queue_name}'"
+  end
+
+  def maintain_scheduled
+    scheduled_size = Sidekiq::ScheduledSet.new.size
+
+    if scheduled_size < MAX_SCHEDULED_JOBS * 0.8
+      jobs_to_add = [MAX_SCHEDULED_JOBS - scheduled_size, SCHEDULE_BATCH_SIZE].min
+      add_scheduled_jobs(jobs_to_add) if jobs_to_add > 0
+    end
+  end
+
+  def add_scheduled_jobs(count)
+    count.times do
+      job_def = @weighted_jobs.sample
+      job_class = Object.const_get(job_def[:job])
+      delay = rand(1..86400) # Schedule between 1 second and 24 hours
+      job_class.set(cattr: {tenanant_id: rand(1..10000)}).perform_in(delay, *job_def[:args].call)
+    end
+
+    puts "[#{Time.now.strftime('%H:%M:%S')}] Added #{count} scheduled jobs"
   end
 end
