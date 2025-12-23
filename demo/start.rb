@@ -34,9 +34,22 @@ when 'all'
 
   pids = []
 
-  # Fork worker process
-  pids << fork do
-    exec('bundle', 'exec', 'sidekiq', '-r', './boot.rb', '-C', 'config/sidekiq.yml')
+  # Fork 4 worker processes with 8 workers each, different queues per process
+  worker_queues = [
+    # Process 1: default and low queues
+    ['default', 'low'],
+    # Process 2: default and low queues
+    ['default', 'low'],
+    # Process 3: critical and mailers queues
+    ['critical', 'mailers'],
+    # Process 4: batch queue only
+    ['batch']
+  ]
+
+  worker_queues.each_with_index do |queues, i|
+    pids << fork do
+      exec('bundle', 'exec', 'sidekiq', '-r', './boot.rb', '-C', 'config/sidekiq.yml', *(queues.flat_map { |q| ['-q', q] }))
+    end
   end
 
   # Fork web UI process
