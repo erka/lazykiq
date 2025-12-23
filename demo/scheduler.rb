@@ -106,7 +106,7 @@ class JobScheduler
     count.times do
       job_def = queue_jobs.sample
       job_class = Object.const_get(job_def[:job])
-      job_class.perform_async(*job_def[:args].call)
+      job_class.set(cattr: {tenanant_id: rand(1..10000)}).perform_async(*job_def[:args].call)
     end
 
     puts "[#{Time.now.strftime('%H:%M:%S')}] Scheduled #{count} jobs for queue '#{queue_name}'"
