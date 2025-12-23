@@ -2,7 +2,9 @@ package sidekiq
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -25,6 +27,34 @@ type Stats struct {
 	Dead      int64
 }
 
+// Process represents a Sidekiq worker process
+type Process struct {
+	Identity    string   // hostname:pid:nonce (e.g., "be4860dbdb68:14:96908d62200c")
+	Hostname    string   // Parsed from identity (e.g., "be4860dbdb68")
+	PID         string   // Parsed from identity (e.g., "14")
+	Concurrency int      // From info.concurrency
+	Busy        int      // From busy field (converted to int)
+	Queues      []string // From info.queues
+	RSS         int64    // From rss field in KB, convert to bytes (*1024)
+}
+
+// Job represents an active Sidekiq job
+type Job struct {
+	ProcessIdentity string
+	ThreadID        string // Base-36 encoded TID
+	JID             string // Job ID
+	Queue           string
+	Class           string // Worker class name
+	Args            []interface{}
+	RunAt           int64 // Unix timestamp
+}
+
+// BusyData holds process and job information
+type BusyData struct {
+	Processes []Process
+	Jobs      []Job
+}
+
 // Client is a Sidekiq API client
 type Client struct {
 	redis *redis.Client
@@ -42,7 +72,7 @@ func NewClient() *Client {
 		DialTimeout:  2 * time.Second, // Short timeout to fail fast
 		ReadTimeout:  2 * time.Second,
 		WriteTimeout: 2 * time.Second,
-		PoolSize:     1,               // Minimal pool size
+		PoolSize:     1, // Minimal pool size
 	})
 
 	return &Client{
@@ -132,4 +162,129 @@ func (c *Client) GetStats(ctx context.Context) (Stats, error) {
 	stats.Dead = dead
 
 	return stats, nil
+}
+
+// GetBusyData fetches detailed process and active job information from Redis
+func (c *Client) GetBusyData(ctx context.Context) (BusyData, error) {
+	var data BusyData
+
+	// Get all process identities
+	processes, err := c.redis.SMembers(ctx, "processes").Result()
+	if err != nil && err != redis.Nil {
+		return data, err
+	}
+
+	// Fetch each process details
+	for _, identity := range processes {
+		// Get process hash fields
+		fields, err := c.redis.HMGet(ctx, identity, "info", "busy", "rss").Result()
+		if err != nil {
+			continue
+		}
+
+		// Check if we got results
+		if len(fields) < 3 {
+			continue
+		}
+
+		// Parse process info
+		process := Process{
+			Identity: identity,
+		}
+
+		// Parse identity to extract hostname and PID (format: hostname:pid:nonce)
+		parts := strings.Split(identity, ":")
+		if len(parts) >= 2 {
+			process.Hostname = parts[0]
+			process.PID = parts[1]
+		}
+
+		// Parse info JSON
+		if fields[0] != nil {
+			var info map[string]interface{}
+			if infoStr, ok := fields[0].(string); ok {
+				if err := json.Unmarshal([]byte(infoStr), &info); err == nil {
+					if concurrency, ok := info["concurrency"].(float64); ok {
+						process.Concurrency = int(concurrency)
+					}
+					if queues, ok := info["queues"].([]interface{}); ok {
+						process.Queues = make([]string, 0, len(queues))
+						for _, q := range queues {
+							if queueName, ok := q.(string); ok {
+								process.Queues = append(process.Queues, queueName)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Parse busy count
+		if fields[1] != nil {
+			if busyStr, ok := fields[1].(string); ok {
+				if busyCount, err := strconv.ParseInt(busyStr, 10, 64); err == nil {
+					process.Busy = int(busyCount)
+				}
+			}
+		}
+
+		// Parse RSS (in KB, convert to bytes)
+		if fields[2] != nil {
+			if rssStr, ok := fields[2].(string); ok {
+				if rss, err := strconv.ParseInt(rssStr, 10, 64); err == nil {
+					process.RSS = rss * 1024 // Convert KB to bytes
+				}
+			}
+		}
+
+		data.Processes = append(data.Processes, process)
+
+		// Get active jobs for this process
+		workKey := identity + ":work"
+		work, err := c.redis.HGetAll(ctx, workKey).Result()
+		if err != nil {
+			continue
+		}
+
+		// Parse each job
+		for tid, workJSON := range work {
+			var workData map[string]interface{}
+			if err := json.Unmarshal([]byte(workJSON), &workData); err != nil {
+				continue
+			}
+
+			job := Job{
+				ProcessIdentity: identity,
+				ThreadID:        tid,
+			}
+
+			// Get queue and run_at from work data
+			if queue, ok := workData["queue"].(string); ok {
+				job.Queue = queue
+			}
+			if runAt, ok := workData["run_at"].(float64); ok {
+				job.RunAt = int64(runAt)
+			}
+
+			// Parse nested payload JSON
+			if payloadStr, ok := workData["payload"].(string); ok {
+				var payload map[string]interface{}
+				if err := json.Unmarshal([]byte(payloadStr), &payload); err == nil {
+					if jid, ok := payload["jid"].(string); ok {
+						job.JID = jid
+					}
+					if class, ok := payload["class"].(string); ok {
+						job.Class = class
+					}
+					if args, ok := payload["args"].([]interface{}); ok {
+						job.Args = args
+					}
+				}
+			}
+
+			data.Jobs = append(data.Jobs, job)
+		}
+	}
+
+	return data, nil
 }

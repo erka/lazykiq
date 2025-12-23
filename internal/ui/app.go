@@ -45,8 +45,8 @@ func New() App {
 
 	viewList := []views.View{
 		views.NewDashboard(),
-		views.NewQueues(),
 		views.NewBusy(),
+		views.NewQueues(),
 		views.NewRetries(),
 		views.NewScheduled(),
 		views.NewDead(),
@@ -54,8 +54,17 @@ func New() App {
 
 	// Apply styles to views
 	viewStyles := views.Styles{
-		Text:  styles.ViewText,
-		Muted: styles.ViewMuted,
+		Text:           styles.ViewText,
+		Muted:          styles.ViewMuted,
+		Title:          styles.ViewTitle,
+		Border:         styles.Theme.Border,
+		MetricLabel:    styles.MetricLabel,
+		MetricValue:    styles.MetricValue,
+		TableHeader:    styles.TableHeader,
+		TableSelected:  styles.TableSelected,
+		TableSeparator: styles.TableSeparator,
+		BoxPadding:     styles.BoxPadding,
+		BorderStyle:    styles.BorderStyle,
 	}
 	for i := range viewList {
 		viewList[i] = viewList[i].SetStyles(viewStyles)
@@ -113,16 +122,35 @@ func (a App) fetchStatsCmd() tea.Msg {
 	}
 }
 
+// fetchBusyDataCmd fetches busy data for the Busy view
+func (a App) fetchBusyDataCmd() tea.Msg {
+	ctx := context.Background()
+	data, err := a.sidekiq.GetBusyData(ctx)
+	if err != nil {
+		return connectionErrorMsg{err: err}
+	}
+	return views.BusyUpdateMsg{Data: data}
+}
+
 // Update implements tea.Model
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tickMsg:
-		// Fetch stats and schedule next tick
+		// Always fetch stats for metrics bar
 		cmds = append(cmds, func() tea.Msg {
 			return a.fetchStatsCmd()
-		}, tickCmd())
+		})
+
+		// Additionally fetch busy data if viewing Busy view
+		if a.activeView == 1 { // Busy view is index 1
+			cmds = append(cmds, func() tea.Msg {
+				return a.fetchBusyDataCmd()
+			})
+		}
+
+		cmds = append(cmds, tickCmd())
 
 	case connectionErrorMsg:
 		// Store the connection error
@@ -184,7 +212,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Border takes 2 chars (left + right)
 		contentWidth := msg.Width - 2
 		for i := range a.views {
-			a.views[i] = a.views[i].SetSize(contentWidth, contentHeight)
+			if i == 1 { // Busy view renders its own border, so give it the full area
+				a.views[i] = a.views[i].SetSize(contentWidth+2, contentHeight+3)
+			} else {
+				a.views[i] = a.views[i].SetSize(contentWidth, contentHeight)
+			}
 		}
 		a.errorPopup = a.errorPopup.SetSize(contentWidth, contentHeight)
 
@@ -219,7 +251,13 @@ func (a App) View() string {
 	contentHeight := a.height - a.metrics.Height() - a.navbar.Height() - 2
 	contentWidth := a.width - 2
 
-	content := a.renderBorderedBox(title, a.views[a.activeView].View(), contentWidth, contentHeight)
+	var content string
+	// Busy view handles its own border (special case for process list outside border)
+	if a.activeView == 1 {
+		content = a.views[a.activeView].View()
+	} else {
+		content = a.renderBorderedBox(title, a.views[a.activeView].View(), contentWidth, contentHeight)
+	}
 
 	// If there's a connection error, overlay the error popup
 	if a.connectionError != nil {
@@ -315,8 +353,17 @@ func (a *App) applyTheme() {
 
 	// Update views
 	viewStyles := views.Styles{
-		Text:  a.styles.ViewText,
-		Muted: a.styles.ViewMuted,
+		Text:           a.styles.ViewText,
+		Muted:          a.styles.ViewMuted,
+		Title:          a.styles.ViewTitle,
+		Border:         a.styles.Theme.Border,
+		MetricLabel:    a.styles.MetricLabel,
+		MetricValue:    a.styles.MetricValue,
+		TableHeader:    a.styles.TableHeader,
+		TableSelected:  a.styles.TableSelected,
+		TableSeparator: a.styles.TableSeparator,
+		BoxPadding:     a.styles.BoxPadding,
+		BorderStyle:    a.styles.BorderStyle,
 	}
 	for i := range a.views {
 		a.views[i] = a.views[i].SetStyles(viewStyles)

@@ -8,8 +8,17 @@ import (
 
 // Styles holds the view-related styles from the theme
 type Styles struct {
-	Text  lipgloss.Style
-	Muted lipgloss.Style
+	Text           lipgloss.Style
+	Muted          lipgloss.Style
+	Title          lipgloss.Style
+	Border         lipgloss.Color
+	MetricLabel    lipgloss.Style
+	MetricValue    lipgloss.Style
+	TableHeader    lipgloss.Style
+	TableSelected  lipgloss.Style
+	TableSeparator lipgloss.Style
+	BoxPadding     lipgloss.Style
+	BorderStyle    lipgloss.Style
 }
 
 // View defines the interface that all views must implement

@@ -17,8 +17,10 @@ internal/
       metrics.go             - top bar: Processed|Failed|Busy|Enqueued|Retries|Scheduled|Dead
       navbar.go              - bottom bar: view keys + quit + theme
       error_popup.go         - centered overlay for connection errors
+      table/table.go         - reusable scrollable table with selection
+    format/format.go         - Duration, Bytes, Args, Number formatters
     views/
-      view.go                - View interface, views.Styles{Text, Muted}
+      view.go                - View interface, views.Styles
       dashboard.go, queues.go, busy.go, retries.go, scheduled.go, dead.go
 ```
 
@@ -29,6 +31,9 @@ internal/
 - Border title: renderBorderedBox() in app.go
 - No backgrounds on metrics/navbar (transparent)
 - NO EMOJIS in UI - keep text clean and professional
+- Shared components: no lipgloss.NewStyle() calls - pass all styles via struct
+- Table in `components/table/` subpackage to avoid import cycle (components ↔ views)
+- Table: last column not truncated/padded to allow horizontal scroll of variable content
 
 ## Data Flow
 - 5-second ticker fetches Sidekiq stats from Redis
@@ -41,3 +46,8 @@ internal/
 
 ## Dependencies
 bubbletea, lipgloss, bubbles/key, go-redis/v9
+
+## Gotchas
+- Horizontal scroll: apply offset to plain text BEFORE lipgloss styling. Slicing ANSI-escaped strings breaks escape sequences.
+- Scroll state: clamp xOffset/yOffset when data or dimensions change (new data may have different max width)
+- Manual vertical scroll (line slicing) is simpler than bubbles/viewport for tables with selection

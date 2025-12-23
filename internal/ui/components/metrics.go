@@ -1,9 +1,8 @@
 package components
 
 import (
-	"fmt"
-
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/kpumuk/lazykiq/internal/ui/format"
 	"github.com/kpumuk/lazykiq/internal/ui/theme"
 )
 
@@ -69,13 +68,13 @@ func (m Metrics) View() string {
 	sep := s.MetricSep.Render(" │ ")
 
 	metrics := []string{
-		s.MetricLabel.Render("Processed: ") + s.MetricValue.Render(formatNumber(m.data.Processed)),
-		s.MetricLabel.Render("Failed: ") + s.MetricValue.Render(formatNumber(m.data.Failed)),
-		s.MetricLabel.Render("Busy: ") + s.MetricValue.Render(formatNumber(m.data.Busy)),
-		s.MetricLabel.Render("Enqueued: ") + s.MetricValue.Render(formatNumber(m.data.Enqueued)),
-		s.MetricLabel.Render("Retries: ") + s.MetricValue.Render(formatNumber(m.data.Retries)),
-		s.MetricLabel.Render("Scheduled: ") + s.MetricValue.Render(formatNumber(m.data.Scheduled)),
-		s.MetricLabel.Render("Dead: ") + s.MetricValue.Render(formatNumber(m.data.Dead)),
+		s.MetricLabel.Render("Processed: ") + s.MetricValue.Render(format.Number(m.data.Processed)),
+		s.MetricLabel.Render("Failed: ") + s.MetricValue.Render(format.Number(m.data.Failed)),
+		s.MetricLabel.Render("Busy: ") + s.MetricValue.Render(format.Number(m.data.Busy)),
+		s.MetricLabel.Render("Enqueued: ") + s.MetricValue.Render(format.Number(m.data.Enqueued)),
+		s.MetricLabel.Render("Retries: ") + s.MetricValue.Render(format.Number(m.data.Retries)),
+		s.MetricLabel.Render("Scheduled: ") + s.MetricValue.Render(format.Number(m.data.Scheduled)),
+		s.MetricLabel.Render("Dead: ") + s.MetricValue.Render(format.Number(m.data.Dead)),
 	}
 
 	content := ""
@@ -104,16 +103,4 @@ func (m Metrics) SetStyles(styles *theme.Styles) Metrics {
 // Height returns the height of the metrics bar
 func (m Metrics) Height() int {
 	return 1
-}
-
-// formatNumber formats a number with K/M suffixes for readability
-func formatNumber(n int64) string {
-	switch {
-	case n >= 1_000_000:
-		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
-	case n >= 1_000:
-		return fmt.Sprintf("%.1fK", float64(n)/1_000)
-	default:
-		return fmt.Sprintf("%d", n)
-	}
 }

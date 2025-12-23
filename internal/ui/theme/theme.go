@@ -88,6 +88,15 @@ type Styles struct {
 	ViewTitle lipgloss.Style
 	ViewText  lipgloss.Style
 	ViewMuted lipgloss.Style
+
+	// Table
+	TableHeader    lipgloss.Style
+	TableSelected  lipgloss.Style
+	TableSeparator lipgloss.Style
+
+	// Layout helpers
+	BoxPadding  lipgloss.Style
+	BorderStyle lipgloss.Style
 }
 
 // NewStyles creates a Styles instance from a Theme
@@ -137,5 +146,24 @@ func NewStyles(t Theme) Styles {
 
 		ViewMuted: lipgloss.NewStyle().
 			Foreground(t.TextMuted),
+
+		// Table
+		TableHeader: lipgloss.NewStyle().
+			Foreground(t.Text).
+			Bold(true),
+
+		TableSelected: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("229")).
+			Background(lipgloss.Color("57")),
+
+		TableSeparator: lipgloss.NewStyle().
+			Foreground(t.Border),
+
+		// Layout helpers
+		BoxPadding: lipgloss.NewStyle().
+			Padding(0, 1),
+
+		BorderStyle: lipgloss.NewStyle().
+			Foreground(t.Border),
 	}
 }

@@ -28,6 +28,8 @@ class JobScheduler
       args: -> { [%w[page_view click purchase signup].sample, { "page" => "/page/#{rand(1..100)}" }, Time.now.to_i] } },
     { job: 'CleanupJob', queue: 'low', weight: 4,
       args: -> { [%w[temp_files sessions logs exports].sample, rand(7..90)] } },
+    { job: 'CleanupJob', queue: 'low', weight: 1,
+      args: -> { [] } },
     { job: 'WebhookDeliveryJob', queue: 'default', weight: 10,
       args: -> { ["https://example.com/webhooks/#{rand(1..100)}", %w[order.created user.updated payment.completed].sample, { "id" => rand(1..10_000) }] } }
   ].freeze
