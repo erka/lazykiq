@@ -32,7 +32,7 @@ type Dead struct {
 	height      int
 	styles      Styles
 	jobs        []*sidekiq.SortedEntry
-	table       *table.Table
+	table       table.Model
 	ready       bool
 	currentPage int
 	totalPages  int
@@ -41,7 +41,12 @@ type Dead struct {
 
 // NewDead creates a new Dead view
 func NewDead() *Dead {
-	return &Dead{}
+	return &Dead{
+		table: table.New(
+			table.WithColumns(deadJobColumns),
+			table.WithEmptyMessage("No dead jobs"),
+		),
+	}
 }
 
 // Init implements View
@@ -80,9 +85,7 @@ func (d *Dead) Update(msg tea.Msg) (View, tea.Cmd) {
 		}
 
 		// Pass other keys to table for navigation
-		if d.table != nil {
-			d.table.Update(msg)
-		}
+		d.table, _ = d.table.Update(msg)
 		return d, nil
 	}
 
@@ -131,15 +134,13 @@ func (d *Dead) SetSize(width, height int) View {
 // SetStyles implements View
 func (d *Dead) SetStyles(styles Styles) View {
 	d.styles = styles
-	if d.table != nil {
-		d.table.SetStyles(table.Styles{
-			Text:      styles.Text,
-			Muted:     styles.Muted,
-			Header:    styles.TableHeader,
-			Selected:  styles.TableSelected,
-			Separator: styles.TableSeparator,
-		})
-	}
+	d.table.SetStyles(table.Styles{
+		Text:      styles.Text,
+		Muted:     styles.Muted,
+		Header:    styles.TableHeader,
+		Selected:  styles.TableSelected,
+		Separator: styles.TableSeparator,
+	})
 	return d
 }
 
@@ -154,9 +155,6 @@ var deadJobColumns = []table.Column{
 
 // updateTableSize updates the table dimensions based on current view size
 func (d *Dead) updateTableSize() {
-	if d.table == nil {
-		return
-	}
 	// Calculate table height: total height - box borders
 	tableHeight := d.height - 2
 	if tableHeight < 3 {
@@ -169,9 +167,7 @@ func (d *Dead) updateTableSize() {
 
 // updateTableRows converts job data to table rows
 func (d *Dead) updateTableRows() {
-	d.ensureTable()
-
-	rows := make([][]string, 0, len(d.jobs))
+	rows := make([]table.Row, 0, len(d.jobs))
 	now := time.Now().Unix()
 	for _, job := range d.jobs {
 		// Format "last retry" as relative time
@@ -187,7 +183,7 @@ func (d *Dead) updateTableRows() {
 			}
 		}
 
-		row := []string{
+		row := table.Row{
 			lastRetry,
 			job.Queue(),
 			job.DisplayClass(),
@@ -200,22 +196,6 @@ func (d *Dead) updateTableRows() {
 	d.updateTableSize()
 }
 
-// ensureTable creates the table if it doesn't exist
-func (d *Dead) ensureTable() {
-	if d.table != nil {
-		return
-	}
-	d.table = table.New(deadJobColumns)
-	d.table.SetEmptyMessage("No dead jobs")
-	d.table.SetStyles(table.Styles{
-		Text:      d.styles.Text,
-		Muted:     d.styles.Muted,
-		Header:    d.styles.TableHeader,
-		Selected:  d.styles.TableSelected,
-		Separator: d.styles.TableSeparator,
-	})
-}
-
 // renderJobsBox renders the bordered box containing the jobs table
 func (d *Dead) renderJobsBox() string {
 	// Build meta: SIZE and PAGE info
@@ -225,10 +205,7 @@ func (d *Dead) renderJobsBox() string {
 	meta := sizeInfo + sep + pageInfo
 
 	// Get table content
-	content := ""
-	if d.table != nil {
-		content = d.table.View()
-	}
+	content := d.table.View()
 
 	box := jobsbox.New(
 		jobsbox.WithStyles(jobsbox.Styles{

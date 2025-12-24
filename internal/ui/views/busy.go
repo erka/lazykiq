@@ -25,7 +25,7 @@ type Busy struct {
 	height          int
 	styles          Styles
 	data            sidekiq.BusyData
-	table           *table.Table
+	table           table.Model
 	ready           bool
 	selectedProcess int // -1 = all, 0-8 = specific process index
 }
@@ -34,6 +34,10 @@ type Busy struct {
 func NewBusy() *Busy {
 	return &Busy{
 		selectedProcess: -1, // Show all jobs by default
+		table: table.New(
+			table.WithColumns(jobColumns),
+			table.WithEmptyMessage("No active jobs"),
+		),
 	}
 }
 
@@ -72,9 +76,7 @@ func (b *Busy) Update(msg tea.Msg) (View, tea.Cmd) {
 		}
 
 		// Pass other keys to table for navigation
-		if b.table != nil {
-			b.table.Update(msg)
-		}
+		b.table, _ = b.table.Update(msg)
 		return b, nil
 	}
 
@@ -128,15 +130,13 @@ func (b *Busy) SetSize(width, height int) View {
 // SetStyles implements View
 func (b *Busy) SetStyles(styles Styles) View {
 	b.styles = styles
-	if b.table != nil {
-		b.table.SetStyles(table.Styles{
-			Text:      styles.Text,
-			Muted:     styles.Muted,
-			Header:    styles.TableHeader,
-			Selected:  styles.TableSelected,
-			Separator: styles.TableSeparator,
-		})
-	}
+	b.table.SetStyles(table.Styles{
+		Text:      styles.Text,
+		Muted:     styles.Muted,
+		Header:    styles.TableHeader,
+		Selected:  styles.TableSelected,
+		Separator: styles.TableSeparator,
+	})
 	return b
 }
 
@@ -238,9 +238,6 @@ var jobColumns = []table.Column{
 
 // updateTableSize updates the table dimensions based on current view size
 func (b *Busy) updateTableSize() {
-	if b.table == nil {
-		return
-	}
 	// Calculate table height: total height - process list - box borders
 	processListHeight := len(b.data.Processes) + 1
 	tableHeight := b.height - processListHeight - 2
@@ -254,15 +251,13 @@ func (b *Busy) updateTableSize() {
 
 // updateTableRows converts job data to table rows
 func (b *Busy) updateTableRows() {
-	b.ensureTable()
-
 	// Get the selected process identity for filtering
 	var selectedIdentity string
 	if b.selectedProcess >= 0 && b.selectedProcess < len(b.data.Processes) {
 		selectedIdentity = b.data.Processes[b.selectedProcess].Identity
 	}
 
-	rows := make([][]string, 0, len(b.data.Jobs))
+	rows := make([]table.Row, 0, len(b.data.Jobs))
 	for _, job := range b.data.Jobs {
 		// Filter by selected process if one is selected
 		if selectedIdentity != "" && job.ProcessIdentity != selectedIdentity {
@@ -275,7 +270,7 @@ func (b *Busy) updateTableRows() {
 			processID = parts[0] + ":" + parts[1]
 		}
 
-		row := []string{
+		row := table.Row{
 			processID,
 			job.ThreadID,
 			job.JID,
@@ -288,22 +283,6 @@ func (b *Busy) updateTableRows() {
 	}
 	b.table.SetRows(rows)
 	b.updateTableSize()
-}
-
-// ensureTable creates the table if it doesn't exist
-func (b *Busy) ensureTable() {
-	if b.table != nil {
-		return
-	}
-	b.table = table.New(jobColumns)
-	b.table.SetEmptyMessage("No active jobs")
-	b.table.SetStyles(table.Styles{
-		Text:      b.styles.Text,
-		Muted:     b.styles.Muted,
-		Header:    b.styles.TableHeader,
-		Selected:  b.styles.TableSelected,
-		Separator: b.styles.TableSeparator,
-	})
 }
 
 // renderJobsBox renders the bordered box containing the jobs table
@@ -343,10 +322,7 @@ func (b *Busy) renderJobsBox() string {
 	}
 
 	// Get table content
-	content := ""
-	if b.table != nil {
-		content = b.table.View()
-	}
+	content := b.table.View()
 
 	box := jobsbox.New(
 		jobsbox.WithStyles(jobsbox.Styles{

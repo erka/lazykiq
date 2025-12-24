@@ -47,7 +47,7 @@ type Queues struct {
 	styles        Styles
 	queues        []*QueueInfo
 	jobs          []*sidekiq.JobRecord
-	table         *table.Table
+	table         table.Model
 	ready         bool
 	currentPage   int
 	totalPages    int
@@ -56,7 +56,12 @@ type Queues struct {
 
 // NewQueues creates a new Queues view
 func NewQueues() *Queues {
-	return &Queues{}
+	return &Queues{
+		table: table.New(
+			table.WithColumns(queueJobColumns),
+			table.WithEmptyMessage("No jobs in queue"),
+		),
+	}
 }
 
 // Init implements View
@@ -106,9 +111,7 @@ func (q *Queues) Update(msg tea.Msg) (View, tea.Cmd) {
 		}
 
 		// Pass other keys to table for navigation
-		if q.table != nil {
-			q.table.Update(msg)
-		}
+		q.table, _ = q.table.Update(msg)
 		return q, nil
 	}
 
@@ -160,15 +163,13 @@ func (q *Queues) SetSize(width, height int) View {
 // SetStyles implements View
 func (q *Queues) SetStyles(styles Styles) View {
 	q.styles = styles
-	if q.table != nil {
-		q.table.SetStyles(table.Styles{
-			Text:      styles.Text,
-			Muted:     styles.Muted,
-			Header:    styles.TableHeader,
-			Selected:  styles.TableSelected,
-			Separator: styles.TableSeparator,
-		})
-	}
+	q.table.SetStyles(table.Styles{
+		Text:      styles.Text,
+		Muted:     styles.Muted,
+		Header:    styles.TableHeader,
+		Selected:  styles.TableSelected,
+		Separator: styles.TableSeparator,
+	})
 	return q
 }
 
@@ -239,9 +240,6 @@ var queueJobColumns = []table.Column{
 
 // updateTableSize updates the table dimensions based on current view size
 func (q *Queues) updateTableSize() {
-	if q.table == nil {
-		return
-	}
 	// Calculate table height: total height - queue list - box borders
 	queueListHeight := len(q.queues) + 1
 	tableHeight := q.height - queueListHeight - 2
@@ -255,11 +253,9 @@ func (q *Queues) updateTableSize() {
 
 // updateTableRows converts job data to table rows
 func (q *Queues) updateTableRows() {
-	q.ensureTable()
-
-	rows := make([][]string, 0, len(q.jobs))
+	rows := make([]table.Row, 0, len(q.jobs))
 	for _, job := range q.jobs {
-		row := []string{
+		row := table.Row{
 			fmt.Sprintf("%d", job.Position),
 			job.DisplayClass(),
 			format.Args(job.Args()),
@@ -281,22 +277,6 @@ func formatContext(ctx map[string]interface{}) string {
 		return ""
 	}
 	return string(b)
-}
-
-// ensureTable creates the table if it doesn't exist
-func (q *Queues) ensureTable() {
-	if q.table != nil {
-		return
-	}
-	q.table = table.New(queueJobColumns)
-	q.table.SetEmptyMessage("No jobs in queue")
-	q.table.SetStyles(table.Styles{
-		Text:      q.styles.Text,
-		Muted:     q.styles.Muted,
-		Header:    q.styles.TableHeader,
-		Selected:  q.styles.TableSelected,
-		Separator: q.styles.TableSeparator,
-	})
 }
 
 // renderJobsBox renders the bordered box containing the jobs table
@@ -321,10 +301,7 @@ func (q *Queues) renderJobsBox() string {
 	boxHeight := q.height - queueListHeight
 
 	// Get table content
-	content := ""
-	if q.table != nil {
-		content = q.table.View()
-	}
+	content := q.table.View()
 
 	box := jobsbox.New(
 		jobsbox.WithStyles(jobsbox.Styles{

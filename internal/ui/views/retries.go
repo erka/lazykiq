@@ -32,7 +32,7 @@ type Retries struct {
 	height      int
 	styles      Styles
 	jobs        []*sidekiq.SortedEntry
-	table       *table.Table
+	table       table.Model
 	ready       bool
 	currentPage int
 	totalPages  int
@@ -41,7 +41,12 @@ type Retries struct {
 
 // NewRetries creates a new Retries view
 func NewRetries() *Retries {
-	return &Retries{}
+	return &Retries{
+		table: table.New(
+			table.WithColumns(retryJobColumns),
+			table.WithEmptyMessage("No retries"),
+		),
+	}
 }
 
 // Init implements View
@@ -80,9 +85,7 @@ func (r *Retries) Update(msg tea.Msg) (View, tea.Cmd) {
 		}
 
 		// Pass other keys to table for navigation
-		if r.table != nil {
-			r.table.Update(msg)
-		}
+		r.table, _ = r.table.Update(msg)
 		return r, nil
 	}
 
@@ -131,15 +134,13 @@ func (r *Retries) SetSize(width, height int) View {
 // SetStyles implements View
 func (r *Retries) SetStyles(styles Styles) View {
 	r.styles = styles
-	if r.table != nil {
-		r.table.SetStyles(table.Styles{
-			Text:      styles.Text,
-			Muted:     styles.Muted,
-			Header:    styles.TableHeader,
-			Selected:  styles.TableSelected,
-			Separator: styles.TableSeparator,
-		})
-	}
+	r.table.SetStyles(table.Styles{
+		Text:      styles.Text,
+		Muted:     styles.Muted,
+		Header:    styles.TableHeader,
+		Selected:  styles.TableSelected,
+		Separator: styles.TableSeparator,
+	})
 	return r
 }
 
@@ -155,9 +156,6 @@ var retryJobColumns = []table.Column{
 
 // updateTableSize updates the table dimensions based on current view size
 func (r *Retries) updateTableSize() {
-	if r.table == nil {
-		return
-	}
 	// Calculate table height: total height - box borders
 	tableHeight := r.height - 2
 	if tableHeight < 3 {
@@ -170,9 +168,7 @@ func (r *Retries) updateTableSize() {
 
 // updateTableRows converts job data to table rows
 func (r *Retries) updateTableRows() {
-	r.ensureTable()
-
-	rows := make([][]string, 0, len(r.jobs))
+	rows := make([]table.Row, 0, len(r.jobs))
 	now := time.Now().Unix()
 	for _, job := range r.jobs {
 		// Format "next retry" as relative time (negative means in the past/due)
@@ -191,7 +187,7 @@ func (r *Retries) updateTableRows() {
 			}
 		}
 
-		row := []string{
+		row := table.Row{
 			nextRetry,
 			retryCount,
 			job.Queue(),
@@ -205,22 +201,6 @@ func (r *Retries) updateTableRows() {
 	r.updateTableSize()
 }
 
-// ensureTable creates the table if it doesn't exist
-func (r *Retries) ensureTable() {
-	if r.table != nil {
-		return
-	}
-	r.table = table.New(retryJobColumns)
-	r.table.SetEmptyMessage("No retries")
-	r.table.SetStyles(table.Styles{
-		Text:      r.styles.Text,
-		Muted:     r.styles.Muted,
-		Header:    r.styles.TableHeader,
-		Selected:  r.styles.TableSelected,
-		Separator: r.styles.TableSeparator,
-	})
-}
-
 // renderJobsBox renders the bordered box containing the jobs table
 func (r *Retries) renderJobsBox() string {
 	// Build meta: SIZE and PAGE info
@@ -230,10 +210,7 @@ func (r *Retries) renderJobsBox() string {
 	meta := sizeInfo + sep + pageInfo
 
 	// Get table content
-	content := ""
-	if r.table != nil {
-		content = r.table.View()
-	}
+	content := r.table.View()
 
 	box := jobsbox.New(
 		jobsbox.WithStyles(jobsbox.Styles{

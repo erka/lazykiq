@@ -32,7 +32,7 @@ type Scheduled struct {
 	height      int
 	styles      Styles
 	jobs        []*sidekiq.SortedEntry
-	table       *table.Table
+	table       table.Model
 	ready       bool
 	currentPage int
 	totalPages  int
@@ -41,7 +41,12 @@ type Scheduled struct {
 
 // NewScheduled creates a new Scheduled view
 func NewScheduled() *Scheduled {
-	return &Scheduled{}
+	return &Scheduled{
+		table: table.New(
+			table.WithColumns(scheduledJobColumns),
+			table.WithEmptyMessage("No scheduled jobs"),
+		),
+	}
 }
 
 // Init implements View
@@ -80,9 +85,7 @@ func (s *Scheduled) Update(msg tea.Msg) (View, tea.Cmd) {
 		}
 
 		// Pass other keys to table for navigation
-		if s.table != nil {
-			s.table.Update(msg)
-		}
+		s.table, _ = s.table.Update(msg)
 		return s, nil
 	}
 
@@ -131,15 +134,13 @@ func (s *Scheduled) SetSize(width, height int) View {
 // SetStyles implements View
 func (s *Scheduled) SetStyles(styles Styles) View {
 	s.styles = styles
-	if s.table != nil {
-		s.table.SetStyles(table.Styles{
-			Text:      styles.Text,
-			Muted:     styles.Muted,
-			Header:    styles.TableHeader,
-			Selected:  styles.TableSelected,
-			Separator: styles.TableSeparator,
-		})
-	}
+	s.table.SetStyles(table.Styles{
+		Text:      styles.Text,
+		Muted:     styles.Muted,
+		Header:    styles.TableHeader,
+		Selected:  styles.TableSelected,
+		Separator: styles.TableSeparator,
+	})
 	return s
 }
 
@@ -153,9 +154,6 @@ var scheduledJobColumns = []table.Column{
 
 // updateTableSize updates the table dimensions based on current view size
 func (s *Scheduled) updateTableSize() {
-	if s.table == nil {
-		return
-	}
 	// Calculate table height: total height - box borders
 	tableHeight := s.height - 2
 	if tableHeight < 3 {
@@ -168,15 +166,13 @@ func (s *Scheduled) updateTableSize() {
 
 // updateTableRows converts job data to table rows
 func (s *Scheduled) updateTableRows() {
-	s.ensureTable()
-
-	rows := make([][]string, 0, len(s.jobs))
+	rows := make([]table.Row, 0, len(s.jobs))
 	now := time.Now().Unix()
 	for _, job := range s.jobs {
 		// Format "when" as time until job runs (job.At() is in the future)
 		when := format.Duration(job.At() - now)
 
-		row := []string{
+		row := table.Row{
 			when,
 			job.Queue(),
 			job.DisplayClass(),
@@ -188,22 +184,6 @@ func (s *Scheduled) updateTableRows() {
 	s.updateTableSize()
 }
 
-// ensureTable creates the table if it doesn't exist
-func (s *Scheduled) ensureTable() {
-	if s.table != nil {
-		return
-	}
-	s.table = table.New(scheduledJobColumns)
-	s.table.SetEmptyMessage("No scheduled jobs")
-	s.table.SetStyles(table.Styles{
-		Text:      s.styles.Text,
-		Muted:     s.styles.Muted,
-		Header:    s.styles.TableHeader,
-		Selected:  s.styles.TableSelected,
-		Separator: s.styles.TableSeparator,
-	})
-}
-
 // renderJobsBox renders the bordered box containing the jobs table
 func (s *Scheduled) renderJobsBox() string {
 	// Build meta: SIZE and PAGE info
@@ -213,10 +193,7 @@ func (s *Scheduled) renderJobsBox() string {
 	meta := sizeInfo + sep + pageInfo
 
 	// Get table content
-	content := ""
-	if s.table != nil {
-		content = s.table.View()
-	}
+	content := s.table.View()
 
 	box := jobsbox.New(
 		jobsbox.WithStyles(jobsbox.Styles{

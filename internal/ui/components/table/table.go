@@ -3,17 +3,81 @@ package table
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Column defines a table column
+// Row represents one line in the table.
+type Row []string
+
+// Column defines a table column.
 type Column struct {
 	Title string
 	Width int
 }
 
-// Styles holds the styles needed by the table
+// KeyMap defines keybindings for the table.
+type KeyMap struct {
+	LineUp     key.Binding
+	LineDown   key.Binding
+	PageUp     key.Binding
+	PageDown   key.Binding
+	GotoTop    key.Binding
+	GotoBottom key.Binding
+	ScrollLeft key.Binding
+	ScrollRight key.Binding
+	Home       key.Binding
+	End        key.Binding
+}
+
+// DefaultKeyMap returns a default set of keybindings.
+func DefaultKeyMap() KeyMap {
+	return KeyMap{
+		LineUp: key.NewBinding(
+			key.WithKeys("up", "k"),
+			key.WithHelp("↑/k", "up"),
+		),
+		LineDown: key.NewBinding(
+			key.WithKeys("down", "j"),
+			key.WithHelp("↓/j", "down"),
+		),
+		PageUp: key.NewBinding(
+			key.WithKeys("pgup"),
+			key.WithHelp("pgup", "page up"),
+		),
+		PageDown: key.NewBinding(
+			key.WithKeys("pgdown"),
+			key.WithHelp("pgdn", "page down"),
+		),
+		GotoTop: key.NewBinding(
+			key.WithKeys("g"),
+			key.WithHelp("g", "go to start"),
+		),
+		GotoBottom: key.NewBinding(
+			key.WithKeys("G"),
+			key.WithHelp("G", "go to end"),
+		),
+		ScrollLeft: key.NewBinding(
+			key.WithKeys("left", "h"),
+			key.WithHelp("←/h", "scroll left"),
+		),
+		ScrollRight: key.NewBinding(
+			key.WithKeys("right", "l"),
+			key.WithHelp("→/l", "scroll right"),
+		),
+		Home: key.NewBinding(
+			key.WithKeys("home", "0"),
+			key.WithHelp("home/0", "scroll to start"),
+		),
+		End: key.NewBinding(
+			key.WithKeys("end", "$"),
+			key.WithHelp("end/$", "scroll to end"),
+		),
+	}
+}
+
+// Styles holds the styles needed by the table.
 type Styles struct {
 	Text      lipgloss.Style
 	Muted     lipgloss.Style
@@ -22,14 +86,27 @@ type Styles struct {
 	Separator lipgloss.Style
 }
 
-// Table is a scrollable table component with selection support
-type Table struct {
+// DefaultStyles returns a set of default style definitions for this table.
+func DefaultStyles() Styles {
+	return Styles{
+		Text:      lipgloss.NewStyle(),
+		Muted:     lipgloss.NewStyle().Faint(true),
+		Header:    lipgloss.NewStyle().Bold(true),
+		Selected:  lipgloss.NewStyle().Reverse(true),
+		Separator: lipgloss.NewStyle().Faint(true),
+	}
+}
+
+// Model is a scrollable table component with selection support.
+type Model struct {
+	KeyMap KeyMap
+
 	columns        []Column
-	rows           [][]string
+	rows           []Row
 	styles         Styles
 	width          int
 	height         int
-	selectedRow    int
+	cursor         int
 	yOffset        int
 	xOffset        int
 	maxRowWidth    int
@@ -39,224 +116,329 @@ type Table struct {
 	viewportHeight int
 }
 
-// New creates a new Table component
-func New(columns []Column) *Table {
-	return &Table{
-		columns:      columns,
+// Option is used to set options in New.
+type Option func(*Model)
+
+// New creates a new model for the table widget.
+func New(opts ...Option) Model {
+	m := Model{
+		KeyMap:       DefaultKeyMap(),
+		styles:       DefaultStyles(),
 		emptyMessage: "No data",
 	}
-}
 
-// SetEmptyMessage sets the message shown when there are no rows
-func (t *Table) SetEmptyMessage(msg string) *Table {
-	t.emptyMessage = msg
-	return t
-}
-
-// SetStyles updates the table styles
-func (t *Table) SetStyles(styles Styles) {
-	t.styles = styles
-	t.rebuildContent()
-}
-
-// SetSize sets the table dimensions
-func (t *Table) SetSize(width, height int) {
-	t.width = width
-	t.height = height
-	t.viewportHeight = height - 2 // minus header and separator
-	if t.viewportHeight < 1 {
-		t.viewportHeight = 1
+	for _, opt := range opts {
+		opt(&m)
 	}
-	t.rebuildContent()
-	t.clampScroll()
+
+	m.updateViewport()
+
+	return m
 }
 
-// SetRows updates the table data
-func (t *Table) SetRows(rows [][]string) {
-	t.rows = rows
+// WithColumns sets the table columns (headers).
+func WithColumns(cols []Column) Option {
+	return func(m *Model) {
+		m.columns = cols
+	}
+}
+
+// WithRows sets the table rows (data).
+func WithRows(rows []Row) Option {
+	return func(m *Model) {
+		m.rows = rows
+	}
+}
+
+// WithStyles sets the table styles.
+func WithStyles(s Styles) Option {
+	return func(m *Model) {
+		m.styles = s
+	}
+}
+
+// WithKeyMap sets the key map.
+func WithKeyMap(km KeyMap) Option {
+	return func(m *Model) {
+		m.KeyMap = km
+	}
+}
+
+// WithWidth sets the width of the table.
+func WithWidth(w int) Option {
+	return func(m *Model) {
+		m.width = w
+	}
+}
+
+// WithHeight sets the height of the table.
+func WithHeight(h int) Option {
+	return func(m *Model) {
+		m.height = h
+		m.viewportHeight = h - 2 // minus header and separator
+		if m.viewportHeight < 1 {
+			m.viewportHeight = 1
+		}
+	}
+}
+
+// WithEmptyMessage sets the message shown when there are no rows.
+func WithEmptyMessage(msg string) Option {
+	return func(m *Model) {
+		m.emptyMessage = msg
+	}
+}
+
+// SetStyles sets the table styles.
+func (m *Model) SetStyles(s Styles) {
+	m.styles = s
+	m.updateViewport()
+}
+
+// SetSize sets the table dimensions.
+func (m *Model) SetSize(width, height int) {
+	m.width = width
+	m.height = height
+	m.viewportHeight = height - 2 // minus header and separator
+	if m.viewportHeight < 1 {
+		m.viewportHeight = 1
+	}
+	m.updateViewport()
+	m.clampScroll()
+}
+
+// SetRows sets a new rows state.
+func (m *Model) SetRows(rows []Row) {
+	m.rows = rows
 	// Keep selection in bounds
-	if t.selectedRow >= len(t.rows) {
-		t.selectedRow = len(t.rows) - 1
+	if m.cursor >= len(m.rows) {
+		m.cursor = len(m.rows) - 1
 	}
-	if t.selectedRow < 0 {
-		t.selectedRow = 0
+	if m.cursor < 0 {
+		m.cursor = 0
 	}
-	t.rebuildContent()
-	t.clampScroll()
+	m.updateViewport()
+	m.clampScroll()
 }
 
-// SelectedRow returns the currently selected row index
-func (t *Table) SelectedRow() int {
-	return t.selectedRow
+// SetColumns sets a new columns state.
+func (m *Model) SetColumns(cols []Column) {
+	m.columns = cols
+	m.updateViewport()
 }
 
-// RowCount returns the number of rows
-func (t *Table) RowCount() int {
-	return len(t.rows)
+// SetEmptyMessage sets the message shown when there are no rows.
+func (m *Model) SetEmptyMessage(msg string) {
+	m.emptyMessage = msg
 }
 
-// Update handles key messages for navigation and scrolling
-func (t *Table) Update(msg tea.Msg) (*Table, tea.Cmd) {
+// SetCursor sets the cursor position in the table.
+func (m *Model) SetCursor(n int) {
+	m.cursor = clamp(n, 0, len(m.rows)-1)
+	m.ensureSelectedVisible()
+	m.updateViewport()
+}
+
+// Cursor returns the index of the selected row.
+func (m Model) Cursor() int {
+	return m.cursor
+}
+
+// SelectedRow returns the currently selected row.
+func (m Model) SelectedRow() Row {
+	if m.cursor < 0 || m.cursor >= len(m.rows) {
+		return nil
+	}
+	return m.rows[m.cursor]
+}
+
+// Rows returns the current rows.
+func (m Model) Rows() []Row {
+	return m.rows
+}
+
+// Columns returns the current columns.
+func (m Model) Columns() []Column {
+	return m.columns
+}
+
+// Width returns the table width.
+func (m Model) Width() int {
+	return m.width
+}
+
+// Height returns the table height.
+func (m Model) Height() int {
+	return m.height
+}
+
+// RowCount returns the number of rows.
+func (m Model) RowCount() int {
+	return len(m.rows)
+}
+
+// Update handles key messages for navigation and scrolling.
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		maxRow := len(t.rows) - 1
-		if maxRow < 0 {
-			maxRow = 0
+		switch {
+		case key.Matches(msg, m.KeyMap.LineUp):
+			m.MoveUp(1)
+		case key.Matches(msg, m.KeyMap.LineDown):
+			m.MoveDown(1)
+		case key.Matches(msg, m.KeyMap.PageUp):
+			m.MoveUp(10)
+		case key.Matches(msg, m.KeyMap.PageDown):
+			m.MoveDown(10)
+		case key.Matches(msg, m.KeyMap.GotoTop):
+			m.GotoTop()
+		case key.Matches(msg, m.KeyMap.GotoBottom):
+			m.GotoBottom()
+		case key.Matches(msg, m.KeyMap.ScrollLeft):
+			m.ScrollLeft()
+		case key.Matches(msg, m.KeyMap.ScrollRight):
+			m.ScrollRight()
+		case key.Matches(msg, m.KeyMap.Home):
+			m.ScrollToStart()
+		case key.Matches(msg, m.KeyMap.End):
+			m.ScrollToEnd()
 		}
-
-		switch msg.Type {
-		case tea.KeyUp:
-			t.moveSelectionUp(1)
-		case tea.KeyDown:
-			t.moveSelectionDown(1, maxRow)
-		case tea.KeyLeft:
-			t.scrollLeft()
-		case tea.KeyRight:
-			t.scrollRight()
-		case tea.KeyPgUp:
-			t.moveSelectionUp(10)
-		case tea.KeyPgDown:
-			t.moveSelectionDown(10, maxRow)
-		case tea.KeyHome:
-			t.selectedRow = 0
-			t.yOffset = 0
-			t.xOffset = 0
-		case tea.KeyEnd:
-			t.selectedRow = maxRow
-			t.gotoBottom()
-		default:
-			switch msg.String() {
-			case "k":
-				t.moveSelectionUp(1)
-			case "j":
-				t.moveSelectionDown(1, maxRow)
-			case "h":
-				t.scrollLeft()
-			case "l":
-				t.scrollRight()
-			case "g":
-				t.selectedRow = 0
-				t.yOffset = 0
-				t.xOffset = 0
-			case "G":
-				t.selectedRow = maxRow
-				t.gotoBottom()
-			case "0":
-				t.xOffset = 0
-			case "$":
-				t.xOffset = t.maxScrollOffset()
-			}
-		}
-		t.rebuildContent()
 	}
-	return t, nil
+	return m, nil
 }
 
-// View renders the table (header + visible rows)
-func (t *Table) View() string {
-	header := t.renderHeader()
-	body := t.getVisibleContent()
+// View renders the table (header + visible rows).
+func (m Model) View() string {
+	header := m.renderHeader()
+	body := m.getVisibleContent()
 	return header + "\n" + body
 }
 
-// moveSelectionUp moves selection up by n rows
-func (t *Table) moveSelectionUp(n int) {
-	t.selectedRow -= n
-	if t.selectedRow < 0 {
-		t.selectedRow = 0
-	}
-	t.ensureSelectedVisible()
+// MoveUp moves the selection up by n rows.
+func (m *Model) MoveUp(n int) {
+	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
+	m.ensureSelectedVisible()
+	m.updateViewport()
 }
 
-// moveSelectionDown moves selection down by n rows
-func (t *Table) moveSelectionDown(n, maxRow int) {
-	t.selectedRow += n
-	if t.selectedRow > maxRow {
-		t.selectedRow = maxRow
-	}
-	t.ensureSelectedVisible()
+// MoveDown moves the selection down by n rows.
+func (m *Model) MoveDown(n int) {
+	m.cursor = clamp(m.cursor+n, 0, len(m.rows)-1)
+	m.ensureSelectedVisible()
+	m.updateViewport()
 }
 
-// scrollLeft scrolls content left
-func (t *Table) scrollLeft() {
-	t.xOffset -= 4
-	if t.xOffset < 0 {
-		t.xOffset = 0
-	}
+// GotoTop moves the selection to the first row.
+func (m *Model) GotoTop() {
+	m.cursor = 0
+	m.yOffset = 0
+	m.xOffset = 0
+	m.updateViewport()
 }
 
-// scrollRight scrolls content right
-func (t *Table) scrollRight() {
-	maxScroll := t.maxScrollOffset()
-	t.xOffset += 4
-	if t.xOffset > maxScroll {
-		t.xOffset = maxScroll
+// GotoBottom moves the selection to the last row.
+func (m *Model) GotoBottom() {
+	if len(m.rows) > 0 {
+		m.cursor = len(m.rows) - 1
 	}
+	m.gotoBottomOffset()
+	m.updateViewport()
 }
 
-// maxScrollOffset returns the maximum horizontal scroll offset
-func (t *Table) maxScrollOffset() int {
-	maxScroll := t.maxRowWidth - t.width
+// ScrollLeft scrolls content left.
+func (m *Model) ScrollLeft() {
+	m.xOffset -= 4
+	if m.xOffset < 0 {
+		m.xOffset = 0
+	}
+	m.updateViewport()
+}
+
+// ScrollRight scrolls content right.
+func (m *Model) ScrollRight() {
+	maxScroll := m.maxScrollOffset()
+	m.xOffset += 4
+	if m.xOffset > maxScroll {
+		m.xOffset = maxScroll
+	}
+	m.updateViewport()
+}
+
+// ScrollToStart scrolls to the beginning horizontally.
+func (m *Model) ScrollToStart() {
+	m.xOffset = 0
+	m.updateViewport()
+}
+
+// ScrollToEnd scrolls to the end horizontally.
+func (m *Model) ScrollToEnd() {
+	m.xOffset = m.maxScrollOffset()
+	m.updateViewport()
+}
+
+// maxScrollOffset returns the maximum horizontal scroll offset.
+func (m *Model) maxScrollOffset() int {
+	maxScroll := m.maxRowWidth - m.width
 	if maxScroll < 0 {
 		return 0
 	}
 	return maxScroll
 }
 
-// clampScroll ensures scroll offsets are within valid bounds
-func (t *Table) clampScroll() {
-	maxX := t.maxScrollOffset()
-	if t.xOffset > maxX {
-		t.xOffset = maxX
+// clampScroll ensures scroll offsets are within valid bounds.
+func (m *Model) clampScroll() {
+	maxX := m.maxScrollOffset()
+	if m.xOffset > maxX {
+		m.xOffset = maxX
 	}
-	if t.xOffset < 0 {
-		t.xOffset = 0
+	if m.xOffset < 0 {
+		m.xOffset = 0
 	}
 
-	maxY := len(t.rows) - t.viewportHeight
+	maxY := len(m.rows) - m.viewportHeight
 	if maxY < 0 {
 		maxY = 0
 	}
-	if t.yOffset > maxY {
-		t.yOffset = maxY
+	if m.yOffset > maxY {
+		m.yOffset = maxY
 	}
-	if t.yOffset < 0 {
-		t.yOffset = 0
-	}
-}
-
-// ensureSelectedVisible scrolls to keep selected row visible
-func (t *Table) ensureSelectedVisible() {
-	if t.selectedRow < t.yOffset {
-		t.yOffset = t.selectedRow
-	} else if t.selectedRow >= t.yOffset+t.viewportHeight {
-		t.yOffset = t.selectedRow - t.viewportHeight + 1
+	if m.yOffset < 0 {
+		m.yOffset = 0
 	}
 }
 
-// gotoBottom scrolls to show the last rows
-func (t *Table) gotoBottom() {
-	maxOffset := len(t.rows) - t.viewportHeight
+// ensureSelectedVisible scrolls to keep selected row visible.
+func (m *Model) ensureSelectedVisible() {
+	if m.cursor < m.yOffset {
+		m.yOffset = m.cursor
+	} else if m.cursor >= m.yOffset+m.viewportHeight {
+		m.yOffset = m.cursor - m.viewportHeight + 1
+	}
+}
+
+// gotoBottomOffset scrolls to show the last rows.
+func (m *Model) gotoBottomOffset() {
+	maxOffset := len(m.rows) - m.viewportHeight
 	if maxOffset < 0 {
 		maxOffset = 0
 	}
-	t.yOffset = maxOffset
+	m.yOffset = maxOffset
 }
 
-// rebuildContent rebuilds the pre-rendered body content
-func (t *Table) rebuildContent() {
-	t.content = t.renderBody()
+// updateViewport rebuilds the pre-rendered body content.
+func (m *Model) updateViewport() {
+	m.content = m.renderBody()
 }
 
-// renderHeader renders the table header with separator
-func (t *Table) renderHeader() string {
+// renderHeader renders the table header with separator.
+func (m Model) renderHeader() string {
 	var cols []string
-	lastCol := len(t.columns) - 1
-	for i, col := range t.columns {
+	lastCol := len(m.columns) - 1
+	for i, col := range m.columns {
 		// Use dynamic column width if available, otherwise use defined width
 		width := col.Width
-		if t.colWidths != nil && i < len(t.colWidths) {
-			width = t.colWidths[i]
+		if m.colWidths != nil && i < len(m.colWidths) {
+			width = m.colWidths[i]
 		}
 
 		if i < lastCol {
@@ -269,9 +451,9 @@ func (t *Table) renderHeader() string {
 	header := strings.Join(cols, " ")
 
 	// Use maxRowWidth for consistent scrolling with body
-	totalWidth := t.maxRowWidth
+	totalWidth := m.maxRowWidth
 	if totalWidth == 0 {
-		for _, col := range t.columns {
+		for _, col := range m.columns {
 			totalWidth += col.Width + 1
 		}
 	}
@@ -282,33 +464,33 @@ func (t *Table) renderHeader() string {
 	}
 
 	// Apply horizontal scroll to header
-	header = applyHorizontalScroll(header, t.xOffset, t.width)
-	styledHeader := t.styles.Header.Render(header)
+	header = applyHorizontalScroll(header, m.xOffset, m.width)
+	styledHeader := m.styles.Header.Render(header)
 
 	// Separator line (also scrolled)
 	separator := strings.Repeat("─", totalWidth)
-	separator = applyHorizontalScroll(separator, t.xOffset, t.width)
+	separator = applyHorizontalScroll(separator, m.xOffset, m.width)
 
-	return styledHeader + "\n" + t.styles.Separator.Render(separator)
+	return styledHeader + "\n" + m.styles.Separator.Render(separator)
 }
 
-// renderBody renders all table rows (for scrolling)
-func (t *Table) renderBody() string {
-	if len(t.rows) == 0 {
-		t.maxRowWidth = 0
-		t.colWidths = nil
-		return t.styles.Muted.Render(t.emptyMessage)
+// renderBody renders all table rows (for scrolling).
+func (m *Model) renderBody() string {
+	if len(m.rows) == 0 {
+		m.maxRowWidth = 0
+		m.colWidths = nil
+		return m.styles.Muted.Render(m.emptyMessage)
 	}
 
 	// First pass: find max width for each column (at least the defined width)
-	t.colWidths = make([]int, len(t.columns))
-	for i, col := range t.columns {
-		t.colWidths[i] = col.Width
+	m.colWidths = make([]int, len(m.columns))
+	for i, col := range m.columns {
+		m.colWidths[i] = col.Width
 	}
-	for _, row := range t.rows {
+	for _, row := range m.rows {
 		for i, cell := range row {
-			if i < len(t.colWidths) && len(cell) > t.colWidths[i] {
-				t.colWidths[i] = len(cell)
+			if i < len(m.colWidths) && len(cell) > m.colWidths[i] {
+				m.colWidths[i] = len(cell)
 			}
 		}
 	}
@@ -316,12 +498,12 @@ func (t *Table) renderBody() string {
 	// Second pass: build all rows using actual column widths (no truncation)
 	var rawRows []string
 	maxWidth := 0
-	lastCol := len(t.columns) - 1
-	for _, row := range t.rows {
+	lastCol := len(m.columns) - 1
+	for _, row := range m.rows {
 		var cols []string
 		for i, cell := range row {
 			if i < lastCol {
-				cols = append(cols, padRight(cell, t.colWidths[i]))
+				cols = append(cols, padRight(cell, m.colWidths[i]))
 			} else {
 				// Last column: no padding (variable width)
 				cols = append(cols, cell)
@@ -334,9 +516,9 @@ func (t *Table) renderBody() string {
 			maxWidth = len(rowStr)
 		}
 	}
-	t.maxRowWidth = maxWidth
+	m.maxRowWidth = maxWidth
 
-	// Second pass: apply scroll and styling
+	// Third pass: apply scroll and styling
 	var lines []string
 	for i, row := range rawRows {
 		// Pad row to max width for consistent selection highlight
@@ -345,13 +527,13 @@ func (t *Table) renderBody() string {
 		}
 
 		// Apply horizontal scroll offset (before styling)
-		row = applyHorizontalScroll(row, t.xOffset, t.width)
+		row = applyHorizontalScroll(row, m.xOffset, m.width)
 
 		// Apply selection highlight
-		if i == t.selectedRow {
-			row = t.styles.Selected.Render(row)
+		if i == m.cursor {
+			row = m.styles.Selected.Render(row)
 		} else {
-			row = t.styles.Text.Render(row)
+			row = m.styles.Text.Render(row)
 		}
 
 		lines = append(lines, row)
@@ -360,35 +542,36 @@ func (t *Table) renderBody() string {
 	return strings.Join(lines, "\n")
 }
 
-// getVisibleContent returns the visible portion of content based on yOffset
-func (t *Table) getVisibleContent() string {
-	if t.content == "" {
+// getVisibleContent returns the visible portion of content based on yOffset.
+func (m Model) getVisibleContent() string {
+	if m.content == "" {
 		return ""
 	}
 
-	lines := strings.Split(t.content, "\n")
+	lines := strings.Split(m.content, "\n")
 
 	// Clamp yOffset to valid range
-	if t.yOffset < 0 {
-		t.yOffset = 0
+	yOffset := m.yOffset
+	if yOffset < 0 {
+		yOffset = 0
 	}
-	if t.yOffset >= len(lines) {
-		t.yOffset = len(lines) - 1
-		if t.yOffset < 0 {
-			t.yOffset = 0
+	if yOffset >= len(lines) {
+		yOffset = len(lines) - 1
+		if yOffset < 0 {
+			yOffset = 0
 		}
 	}
 
 	// Get visible slice
-	end := t.yOffset + t.viewportHeight
+	end := yOffset + m.viewportHeight
 	if end > len(lines) {
 		end = len(lines)
 	}
 
-	return strings.Join(lines[t.yOffset:end], "\n")
+	return strings.Join(lines[yOffset:end], "\n")
 }
 
-// applyHorizontalScroll applies horizontal scroll offset to a plain text line
+// applyHorizontalScroll applies horizontal scroll offset to a plain text line.
 func applyHorizontalScroll(line string, offset, visibleWidth int) string {
 	runes := []rune(line)
 
@@ -405,10 +588,18 @@ func applyHorizontalScroll(line string, offset, visibleWidth int) string {
 	return string(runes[:visibleWidth])
 }
 
-// padRight pads a string to the specified width (no truncation)
+// padRight pads a string to the specified width (no truncation).
 func padRight(s string, width int) string {
 	if len(s) >= width {
 		return s
 	}
 	return s + strings.Repeat(" ", width-len(s))
+}
+
+// clamp restricts a value to a range.
+func clamp(v, low, high int) int {
+	if high < low {
+		return low
+	}
+	return min(max(v, low), high)
 }
