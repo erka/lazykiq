@@ -113,6 +113,14 @@ func (se *SortedEntry) HasError() bool {
 	return ok
 }
 
+// RetryCount returns the number of times this job has been retried.
+func (se *SortedEntry) RetryCount() int {
+	if rc, ok := se.item["retry_count"].(float64); ok {
+		return int(rc)
+	}
+	return 0
+}
+
 // Item returns the full parsed job data.
 func (se *SortedEntry) Item() map[string]interface{} {
 	return se.item
@@ -123,11 +131,10 @@ func (se *SortedEntry) Value() string {
 	return se.value
 }
 
-// GetDeadJobs fetches dead jobs with pagination.
-// Jobs are returned newest-first (highest score first, which is ZREVRANGE).
-func (c *Client) GetDeadJobs(ctx context.Context, start, count int) ([]*SortedEntry, int64, error) {
-	// Get total size
-	size, err := c.redis.ZCard(ctx, "dead").Result()
+// getSortedSetJobs fetches jobs from a sorted set with pagination.
+// If reverse is true, returns highest scores first (ZREVRANGE), otherwise lowest first (ZRANGE).
+func (c *Client) getSortedSetJobs(ctx context.Context, key string, start, count int, reverse bool) ([]*SortedEntry, int64, error) {
+	size, err := c.redis.ZCard(ctx, key).Result()
 	if err != nil && err != redis.Nil {
 		return nil, 0, err
 	}
@@ -136,9 +143,13 @@ func (c *Client) GetDeadJobs(ctx context.Context, start, count int) ([]*SortedEn
 		return nil, 0, nil
 	}
 
-	// Fetch jobs from Redis using ZREVRANGE (newest first, highest score first)
 	end := int64(start + count - 1)
-	results, err := c.redis.ZRevRangeWithScores(ctx, "dead", int64(start), end).Result()
+	var results []redis.Z
+	if reverse {
+		results, err = c.redis.ZRevRangeWithScores(ctx, key, int64(start), end).Result()
+	} else {
+		results, err = c.redis.ZRangeWithScores(ctx, key, int64(start), end).Result()
+	}
 	if err != nil {
 		return nil, size, err
 	}
@@ -150,4 +161,14 @@ func (c *Client) GetDeadJobs(ctx context.Context, start, count int) ([]*SortedEn
 	}
 
 	return entries, size, nil
+}
+
+// GetDeadJobs fetches dead jobs with pagination (newest first).
+func (c *Client) GetDeadJobs(ctx context.Context, start, count int) ([]*SortedEntry, int64, error) {
+	return c.getSortedSetJobs(ctx, "dead", start, count, true)
+}
+
+// GetRetryJobs fetches retry jobs with pagination (earliest retry first).
+func (c *Client) GetRetryJobs(ctx context.Context, start, count int) ([]*SortedEntry, int64, error) {
+	return c.getSortedSetJobs(ctx, "retry", start, count, false)
 }
