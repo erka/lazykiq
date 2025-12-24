@@ -21,17 +21,20 @@ type BusyUpdateMsg struct {
 
 // Busy shows active workers/processes
 type Busy struct {
-	width  int
-	height int
-	styles Styles
-	data   sidekiq.BusyData
-	table  *table.Table
-	ready  bool
+	width           int
+	height          int
+	styles          Styles
+	data            sidekiq.BusyData
+	table           *table.Table
+	ready           bool
+	selectedProcess int // -1 = all, 0-8 = specific process index
 }
 
 // NewBusy creates a new Busy view
 func NewBusy() *Busy {
-	return &Busy{}
+	return &Busy{
+		selectedProcess: -1, // Show all jobs by default
+	}
 }
 
 // Init implements View
@@ -49,6 +52,26 @@ func (b *Busy) Update(msg tea.Msg) (View, tea.Cmd) {
 		return b, nil
 
 	case tea.KeyMsg:
+		// Handle process selection with alt+0-9
+		switch msg.String() {
+		case "alt+0":
+			// Show all jobs
+			if b.selectedProcess != -1 {
+				b.selectedProcess = -1
+				b.updateTableRows()
+			}
+			return b, nil
+		case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
+			// Extract the digit from the key
+			idx := int(msg.String()[4] - '1') // "alt+1" -> 0, "alt+2" -> 1, etc.
+			if idx >= 0 && idx < len(b.data.Processes) && b.selectedProcess != idx {
+				b.selectedProcess = idx
+				b.updateTableRows()
+			}
+			return b, nil
+		}
+
+		// Pass other keys to table for navigation
 		if b.table != nil {
 			b.table.Update(msg)
 		}
@@ -117,21 +140,86 @@ func (b *Busy) SetStyles(styles Styles) View {
 	return b
 }
 
-// renderProcessList renders the compact process list (outside the border)
+// renderProcessList renders the process list as a table (outside the border)
 func (b *Busy) renderProcessList() string {
 	if len(b.data.Processes) == 0 {
 		return ""
 	}
 
-	var lines []string
+	// First pass: find max widths for alignment
+	maxNameLen := 0
+	maxBusyLen := 0
+	maxStartedLen := 0
+	maxRSSLen := 0
+
+	type processRow struct {
+		name    string
+		busy    string
+		started string
+		rss     string
+		queues  string
+	}
+	rows := make([]processRow, len(b.data.Processes))
+
 	for i, proc := range b.data.Processes {
-		number := fmt.Sprintf("%d", i+1)
-		busy := fmt.Sprintf("[%d/%d]", proc.Busy, proc.Concurrency)
-		location := fmt.Sprintf("%s:%s", proc.Hostname, proc.PID)
+		// Name: hostname:pid + tag
+		name := fmt.Sprintf("%s:%s", proc.Hostname, proc.PID)
+		if proc.Tag != "" {
+			name += " [" + proc.Tag + "]"
+		}
+
+		// Busy/Threads: busy/concurrency format
+		busy := fmt.Sprintf("%d/%d", proc.Busy, proc.Concurrency)
+
+		// Started: relative time
+		started := format.Duration(time.Now().Unix() - proc.StartedAt)
+
+		// RSS: memory usage
+		rss := format.Bytes(proc.RSS)
+
+		// Queues
 		queues := strings.Join(proc.Queues, ", ")
 
-		line := fmt.Sprintf("%s %s %s  %s", number, busy, location, queues)
-		lines = append(lines, b.styles.Text.Render(line))
+		rows[i] = processRow{name, busy, started, rss, queues}
+
+		if len(name) > maxNameLen {
+			maxNameLen = len(name)
+		}
+		if len(busy) > maxBusyLen {
+			maxBusyLen = len(busy)
+		}
+		if len(started) > maxStartedLen {
+			maxStartedLen = len(started)
+		}
+		if len(rss) > maxRSSLen {
+			maxRSSLen = len(rss)
+		}
+	}
+
+	var lines []string
+	for i, row := range rows {
+		// Hotkey with NavKey style, bold if selected
+		hotkeyText := fmt.Sprintf("%d", i+1)
+		var hotkey string
+		if i == b.selectedProcess {
+			hotkey = b.styles.NavKey.Bold(true).Render(hotkeyText)
+		} else {
+			hotkey = b.styles.NavKey.Render(hotkeyText)
+		}
+
+		// Name (left-aligned)
+		name := b.styles.Text.Render(fmt.Sprintf("%-*s", maxNameLen, row.name))
+
+		// Stats (right-aligned, muted)
+		busy := fmt.Sprintf("%*s", maxBusyLen, row.busy)
+		started := fmt.Sprintf("%*s", maxStartedLen, row.started)
+		rss := fmt.Sprintf("%*s", maxRSSLen, row.rss)
+		stats := b.styles.Muted.Render(fmt.Sprintf("  %s  %s  %s", busy, started, rss))
+
+		// Queues (muted)
+		queues := b.styles.Muted.Render("  " + row.queues)
+
+		lines = append(lines, hotkey+name+stats+queues)
 	}
 
 	return b.styles.BoxPadding.Render(strings.Join(lines, "\n"))
@@ -168,8 +256,19 @@ func (b *Busy) updateTableSize() {
 func (b *Busy) updateTableRows() {
 	b.ensureTable()
 
+	// Get the selected process identity for filtering
+	var selectedIdentity string
+	if b.selectedProcess >= 0 && b.selectedProcess < len(b.data.Processes) {
+		selectedIdentity = b.data.Processes[b.selectedProcess].Identity
+	}
+
 	rows := make([][]string, 0, len(b.data.Jobs))
 	for _, job := range b.data.Jobs {
+		// Filter by selected process if one is selected
+		if selectedIdentity != "" && job.ProcessIdentity != selectedIdentity {
+			continue
+		}
+
 		processID := job.ProcessIdentity
 		parts := strings.Split(processID, ":")
 		if len(parts) >= 2 {
@@ -236,6 +335,13 @@ func (b *Busy) renderJobsBox() string {
 	processListHeight := len(b.data.Processes) + 1
 	boxHeight := b.height - processListHeight
 
+	// Build title based on selected process
+	title := "Active Jobs"
+	if b.selectedProcess >= 0 && b.selectedProcess < len(b.data.Processes) {
+		proc := b.data.Processes[b.selectedProcess]
+		title = fmt.Sprintf("Active Jobs on %s:%s", proc.Hostname, proc.PID)
+	}
+
 	// Get table content
 	content := ""
 	if b.table != nil {
@@ -245,7 +351,7 @@ func (b *Busy) renderJobsBox() string {
 	return jobsbox.Render(jobsbox.Styles{
 		Title:  b.styles.Title,
 		Border: b.styles.BorderStyle,
-	}, "Active Jobs", meta, content, b.width, boxHeight)
+	}, title, meta, content, b.width, boxHeight)
 }
 
 func (b *Busy) renderMessage(msg string) string {

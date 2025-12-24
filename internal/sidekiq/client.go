@@ -32,10 +32,12 @@ type Process struct {
 	Identity    string   // hostname:pid:nonce (e.g., "be4860dbdb68:14:96908d62200c")
 	Hostname    string   // Parsed from identity (e.g., "be4860dbdb68")
 	PID         string   // Parsed from identity (e.g., "14")
+	Tag         string   // From info.tag (e.g., "myapp")
 	Concurrency int      // From info.concurrency
 	Busy        int      // From busy field (converted to int)
 	Queues      []string // From info.queues
 	RSS         int64    // From rss field in KB, convert to bytes (*1024)
+	StartedAt   int64    // From info.started_at (Unix timestamp)
 }
 
 // Job represents an active Sidekiq job
@@ -214,6 +216,12 @@ func (c *Client) GetBusyData(ctx context.Context) (BusyData, error) {
 								process.Queues = append(process.Queues, queueName)
 							}
 						}
+					}
+					if tag, ok := info["tag"].(string); ok {
+						process.Tag = tag
+					}
+					if startedAt, ok := info["started_at"].(float64); ok {
+						process.StartedAt = int64(startedAt)
 					}
 				}
 			}
