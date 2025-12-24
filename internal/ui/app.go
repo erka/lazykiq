@@ -407,27 +407,42 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, a.keys.View2):
 			a.activeView = 1
 			cmds = append(cmds, a.views[a.activeView].Init())
+			cmds = append(cmds, func() tea.Msg {
+				return a.fetchBusyDataCmd()
+			})
 
 		case key.Matches(msg, a.keys.View3):
 			a.activeView = 2
 			a.queuesPage = 1      // Reset to first page when switching to Queues view
 			a.selectedQueue = 0   // Reset to first queue when switching to Queues view
 			cmds = append(cmds, a.views[a.activeView].Init())
+			cmds = append(cmds, func() tea.Msg {
+				return a.fetchQueuesDataCmd()
+			})
 
 		case key.Matches(msg, a.keys.View4):
 			a.activeView = 3
 			a.retriesPage = 1 // Reset to first page when switching to Retries view
 			cmds = append(cmds, a.views[a.activeView].Init())
+			cmds = append(cmds, func() tea.Msg {
+				return a.fetchRetriesDataCmd()
+			})
 
 		case key.Matches(msg, a.keys.View5):
 			a.activeView = 4
 			a.scheduledPage = 1 // Reset to first page when switching to Scheduled view
 			cmds = append(cmds, a.views[a.activeView].Init())
+			cmds = append(cmds, func() tea.Msg {
+				return a.fetchScheduledDataCmd()
+			})
 
 		case key.Matches(msg, a.keys.View6):
 			a.activeView = 5
 			a.deadPage = 1 // Reset to first page when switching to Dead view
 			cmds = append(cmds, a.views[a.activeView].Init())
+			cmds = append(cmds, func() tea.Msg {
+				return a.fetchDeadDataCmd()
+			})
 
 		default:
 			// Pass to active view
