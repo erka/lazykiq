@@ -22,6 +22,16 @@ type Styles struct {
 	NavKey         lipgloss.Style
 }
 
+// RefreshMsg is broadcast by the app on the 5-second ticker.
+// Views should respond by fetching their data.
+type RefreshMsg struct{}
+
+// ConnectionErrorMsg indicates a Redis connection error occurred.
+// Views emit this when data fetching fails.
+type ConnectionErrorMsg struct {
+	Err error
+}
+
 // View defines the interface that all views must implement
 type View interface {
 	// Init returns an initial command for the view

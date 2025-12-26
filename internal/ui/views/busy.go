@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -14,13 +15,14 @@ import (
 	"github.com/kpumuk/lazykiq/internal/ui/format"
 )
 
-// BusyUpdateMsg carries busy data from App to Busy view
-type BusyUpdateMsg struct {
-	Data sidekiq.BusyData
+// busyDataMsg carries busy data from the fetch command to the Busy view
+type busyDataMsg struct {
+	data sidekiq.BusyData
 }
 
 // Busy shows active workers/processes
 type Busy struct {
+	client          *sidekiq.Client
 	width           int
 	height          int
 	styles          Styles
@@ -31,8 +33,9 @@ type Busy struct {
 }
 
 // NewBusy creates a new Busy view
-func NewBusy() *Busy {
+func NewBusy(client *sidekiq.Client) *Busy {
 	return &Busy{
+		client:          client,
 		selectedProcess: -1, // Show all jobs by default
 		table: table.New(
 			table.WithColumns(jobColumns),
@@ -41,33 +44,45 @@ func NewBusy() *Busy {
 	}
 }
 
+// fetchDataCmd fetches busy data from Redis
+func (b *Busy) fetchDataCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+		data, err := b.client.GetBusyData(ctx)
+		if err != nil {
+			return ConnectionErrorMsg{Err: err}
+		}
+		return busyDataMsg{data: data}
+	}
+}
+
 // Init implements View
 func (b *Busy) Init() tea.Cmd {
-	return nil
+	return b.fetchDataCmd()
 }
 
 // Update implements View
 func (b *Busy) Update(msg tea.Msg) (View, tea.Cmd) {
 	switch msg := msg.(type) {
-	case BusyUpdateMsg:
-		b.data = msg.Data
+	case busyDataMsg:
+		b.data = msg.data
 		b.ready = true
 		b.updateTableRows()
 		return b, nil
 
+	case RefreshMsg:
+		return b, b.fetchDataCmd()
+
 	case tea.KeyMsg:
-		// Handle process selection with alt+0-9
 		switch msg.String() {
 		case "alt+0":
-			// Show all jobs
 			if b.selectedProcess != -1 {
 				b.selectedProcess = -1
 				b.updateTableRows()
 			}
 			return b, nil
 		case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
-			// Extract the digit from the key
-			idx := int(msg.String()[4] - '1') // "alt+1" -> 0, "alt+2" -> 1, etc.
+			idx := int(msg.String()[4] - '1')
 			if idx >= 0 && idx < len(b.data.Processes) && b.selectedProcess != idx {
 				b.selectedProcess = idx
 				b.updateTableRows()
@@ -75,7 +90,6 @@ func (b *Busy) Update(msg tea.Msg) (View, tea.Cmd) {
 			return b, nil
 		}
 
-		// Pass other keys to table for navigation
 		b.table, _ = b.table.Update(msg)
 		return b, nil
 	}

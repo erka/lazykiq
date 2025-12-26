@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -13,21 +14,19 @@ import (
 	"github.com/kpumuk/lazykiq/internal/ui/format"
 )
 
-// ScheduledUpdateMsg carries scheduled jobs data from App to Scheduled view
-type ScheduledUpdateMsg struct {
-	Jobs        []*sidekiq.SortedEntry
-	CurrentPage int
-	TotalPages  int
-	TotalSize   int64
-}
+const scheduledPageSize = 25
 
-// ScheduledPageRequestMsg requests a specific page of scheduled jobs
-type ScheduledPageRequestMsg struct {
-	Page int
+// scheduledDataMsg carries scheduled jobs data internally
+type scheduledDataMsg struct {
+	jobs        []*sidekiq.SortedEntry
+	currentPage int
+	totalPages  int
+	totalSize   int64
 }
 
 // Scheduled shows jobs scheduled for future execution
 type Scheduled struct {
+	client      *sidekiq.Client
 	width       int
 	height      int
 	styles      Styles
@@ -40,8 +39,11 @@ type Scheduled struct {
 }
 
 // NewScheduled creates a new Scheduled view
-func NewScheduled() *Scheduled {
+func NewScheduled(client *sidekiq.Client) *Scheduled {
 	return &Scheduled{
+		client:      client,
+		currentPage: 1,
+		totalPages:  1,
 		table: table.New(
 			table.WithColumns(scheduledJobColumns),
 			table.WithEmptyMessage("No scheduled jobs"),
@@ -49,42 +51,77 @@ func NewScheduled() *Scheduled {
 	}
 }
 
+// fetchDataCmd fetches scheduled jobs data from Redis
+func (s *Scheduled) fetchDataCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+
+		currentPage := s.currentPage
+		totalPages := 1
+
+		start := (currentPage - 1) * scheduledPageSize
+		jobs, totalSize, err := s.client.GetScheduledJobs(ctx, start, scheduledPageSize)
+		if err != nil {
+			return ConnectionErrorMsg{Err: err}
+		}
+
+		if totalSize > 0 {
+			totalPages = int((totalSize + scheduledPageSize - 1) / scheduledPageSize)
+		}
+
+		if currentPage > totalPages {
+			currentPage = totalPages
+		}
+		if currentPage < 1 {
+			currentPage = 1
+		}
+
+		return scheduledDataMsg{
+			jobs:        jobs,
+			currentPage: currentPage,
+			totalPages:  totalPages,
+			totalSize:   totalSize,
+		}
+	}
+}
+
 // Init implements View
 func (s *Scheduled) Init() tea.Cmd {
-	return nil
+	s.currentPage = 1
+	return s.fetchDataCmd()
 }
 
 // Update implements View
 func (s *Scheduled) Update(msg tea.Msg) (View, tea.Cmd) {
 	switch msg := msg.(type) {
-	case ScheduledUpdateMsg:
-		s.jobs = msg.Jobs
-		s.currentPage = msg.CurrentPage
-		s.totalPages = msg.TotalPages
-		s.totalSize = msg.TotalSize
+	case scheduledDataMsg:
+		s.jobs = msg.jobs
+		s.currentPage = msg.currentPage
+		s.totalPages = msg.totalPages
+		s.totalSize = msg.totalSize
 		s.ready = true
 		s.updateTableRows()
 		return s, nil
+
+	case RefreshMsg:
+		return s, s.fetchDataCmd()
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "alt+left", "[":
 			if s.currentPage > 1 {
-				return s, func() tea.Msg {
-					return ScheduledPageRequestMsg{Page: s.currentPage - 1}
-				}
+				s.currentPage--
+				return s, s.fetchDataCmd()
 			}
 			return s, nil
 		case "alt+right", "]":
 			if s.currentPage < s.totalPages {
-				return s, func() tea.Msg {
-					return ScheduledPageRequestMsg{Page: s.currentPage + 1}
-				}
+				s.currentPage++
+				return s, s.fetchDataCmd()
 			}
 			return s, nil
 		}
 
-		// Pass other keys to table for navigation
 		s.table, _ = s.table.Update(msg)
 		return s, nil
 	}
@@ -207,4 +244,3 @@ func (s *Scheduled) renderJobsBox() string {
 	)
 	return box.View()
 }
-

@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -13,21 +14,19 @@ import (
 	"github.com/kpumuk/lazykiq/internal/ui/format"
 )
 
-// DeadUpdateMsg carries dead jobs data from App to Dead view
-type DeadUpdateMsg struct {
-	Jobs        []*sidekiq.SortedEntry
-	CurrentPage int
-	TotalPages  int
-	TotalSize   int64
-}
+const deadPageSize = 25
 
-// DeadPageRequestMsg requests a specific page of dead jobs
-type DeadPageRequestMsg struct {
-	Page int
+// deadDataMsg carries dead jobs data internally
+type deadDataMsg struct {
+	jobs        []*sidekiq.SortedEntry
+	currentPage int
+	totalPages  int
+	totalSize   int64
 }
 
 // Dead shows dead/morgue jobs
 type Dead struct {
+	client      *sidekiq.Client
 	width       int
 	height      int
 	styles      Styles
@@ -40,8 +39,11 @@ type Dead struct {
 }
 
 // NewDead creates a new Dead view
-func NewDead() *Dead {
+func NewDead(client *sidekiq.Client) *Dead {
 	return &Dead{
+		client:      client,
+		currentPage: 1,
+		totalPages:  1,
 		table: table.New(
 			table.WithColumns(deadJobColumns),
 			table.WithEmptyMessage("No dead jobs"),
@@ -49,42 +51,77 @@ func NewDead() *Dead {
 	}
 }
 
+// fetchDataCmd fetches dead jobs data from Redis
+func (d *Dead) fetchDataCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+
+		currentPage := d.currentPage
+		totalPages := 1
+
+		start := (currentPage - 1) * deadPageSize
+		jobs, totalSize, err := d.client.GetDeadJobs(ctx, start, deadPageSize)
+		if err != nil {
+			return ConnectionErrorMsg{Err: err}
+		}
+
+		if totalSize > 0 {
+			totalPages = int((totalSize + deadPageSize - 1) / deadPageSize)
+		}
+
+		if currentPage > totalPages {
+			currentPage = totalPages
+		}
+		if currentPage < 1 {
+			currentPage = 1
+		}
+
+		return deadDataMsg{
+			jobs:        jobs,
+			currentPage: currentPage,
+			totalPages:  totalPages,
+			totalSize:   totalSize,
+		}
+	}
+}
+
 // Init implements View
 func (d *Dead) Init() tea.Cmd {
-	return nil
+	d.currentPage = 1
+	return d.fetchDataCmd()
 }
 
 // Update implements View
 func (d *Dead) Update(msg tea.Msg) (View, tea.Cmd) {
 	switch msg := msg.(type) {
-	case DeadUpdateMsg:
-		d.jobs = msg.Jobs
-		d.currentPage = msg.CurrentPage
-		d.totalPages = msg.TotalPages
-		d.totalSize = msg.TotalSize
+	case deadDataMsg:
+		d.jobs = msg.jobs
+		d.currentPage = msg.currentPage
+		d.totalPages = msg.totalPages
+		d.totalSize = msg.totalSize
 		d.ready = true
 		d.updateTableRows()
 		return d, nil
+
+	case RefreshMsg:
+		return d, d.fetchDataCmd()
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "alt+left", "[":
 			if d.currentPage > 1 {
-				return d, func() tea.Msg {
-					return DeadPageRequestMsg{Page: d.currentPage - 1}
-				}
+				d.currentPage--
+				return d, d.fetchDataCmd()
 			}
 			return d, nil
 		case "alt+right", "]":
 			if d.currentPage < d.totalPages {
-				return d, func() tea.Msg {
-					return DeadPageRequestMsg{Page: d.currentPage + 1}
-				}
+				d.currentPage++
+				return d, d.fetchDataCmd()
 			}
 			return d, nil
 		}
 
-		// Pass other keys to table for navigation
 		d.table, _ = d.table.Update(msg)
 		return d, nil
 	}
@@ -219,4 +256,3 @@ func (d *Dead) renderJobsBox() string {
 	)
 	return box.View()
 }
-

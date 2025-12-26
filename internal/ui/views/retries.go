@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -13,21 +14,19 @@ import (
 	"github.com/kpumuk/lazykiq/internal/ui/format"
 )
 
-// RetriesUpdateMsg carries retry jobs data from App to Retries view
-type RetriesUpdateMsg struct {
-	Jobs        []*sidekiq.SortedEntry
-	CurrentPage int
-	TotalPages  int
-	TotalSize   int64
+// retriesDataMsg is internal to the Retries view
+type retriesDataMsg struct {
+	jobs        []*sidekiq.SortedEntry
+	currentPage int
+	totalPages  int
+	totalSize   int64
 }
 
-// RetriesPageRequestMsg requests a specific page of retry jobs
-type RetriesPageRequestMsg struct {
-	Page int
-}
+const retriesPageSize = 25
 
 // Retries shows failed jobs pending retry
 type Retries struct {
+	client      *sidekiq.Client
 	width       int
 	height      int
 	styles      Styles
@@ -40,8 +39,11 @@ type Retries struct {
 }
 
 // NewRetries creates a new Retries view
-func NewRetries() *Retries {
+func NewRetries(client *sidekiq.Client) *Retries {
 	return &Retries{
+		client:      client,
+		currentPage: 1,
+		totalPages:  1,
 		table: table.New(
 			table.WithColumns(retryJobColumns),
 			table.WithEmptyMessage("No retries"),
@@ -49,37 +51,73 @@ func NewRetries() *Retries {
 	}
 }
 
+// fetchDataCmd fetches retry jobs data from Redis
+func (r *Retries) fetchDataCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+
+		currentPage := r.currentPage
+		totalPages := 1
+
+		start := (currentPage - 1) * retriesPageSize
+		jobs, totalSize, err := r.client.GetRetryJobs(ctx, start, retriesPageSize)
+		if err != nil {
+			return ConnectionErrorMsg{Err: err}
+		}
+
+		if totalSize > 0 {
+			totalPages = int((totalSize + retriesPageSize - 1) / retriesPageSize)
+		}
+
+		if currentPage > totalPages {
+			currentPage = totalPages
+		}
+		if currentPage < 1 {
+			currentPage = 1
+		}
+
+		return retriesDataMsg{
+			jobs:        jobs,
+			currentPage: currentPage,
+			totalPages:  totalPages,
+			totalSize:   totalSize,
+		}
+	}
+}
+
 // Init implements View
 func (r *Retries) Init() tea.Cmd {
-	return nil
+	r.currentPage = 1
+	return r.fetchDataCmd()
 }
 
 // Update implements View
 func (r *Retries) Update(msg tea.Msg) (View, tea.Cmd) {
 	switch msg := msg.(type) {
-	case RetriesUpdateMsg:
-		r.jobs = msg.Jobs
-		r.currentPage = msg.CurrentPage
-		r.totalPages = msg.TotalPages
-		r.totalSize = msg.TotalSize
+	case retriesDataMsg:
+		r.jobs = msg.jobs
+		r.currentPage = msg.currentPage
+		r.totalPages = msg.totalPages
+		r.totalSize = msg.totalSize
 		r.ready = true
 		r.updateTableRows()
 		return r, nil
+
+	case RefreshMsg:
+		return r, r.fetchDataCmd()
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "alt+left", "[":
 			if r.currentPage > 1 {
-				return r, func() tea.Msg {
-					return RetriesPageRequestMsg{Page: r.currentPage - 1}
-				}
+				r.currentPage--
+				return r, r.fetchDataCmd()
 			}
 			return r, nil
 		case "alt+right", "]":
 			if r.currentPage < r.totalPages {
-				return r, func() tea.Msg {
-					return RetriesPageRequestMsg{Page: r.currentPage + 1}
-				}
+				r.currentPage++
+				return r, r.fetchDataCmd()
 			}
 			return r, nil
 		}
@@ -224,4 +262,3 @@ func (r *Retries) renderJobsBox() string {
 	)
 	return box.View()
 }
-

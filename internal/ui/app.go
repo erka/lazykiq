@@ -39,24 +39,21 @@ type App struct {
 	darkMode        bool
 	sidekiq         *sidekiq.Client
 	connectionError error
-	queuesPage    int // current page for Queues view (1-indexed)
-	selectedQueue int // selected queue index for Queues view (0-indexed)
-	retriesPage   int // current page for Retries view (1-indexed)
-	scheduledPage int // current page for Scheduled view (1-indexed)
-	deadPage      int // current page for Dead view (1-indexed)
 }
 
 // New creates a new App instance
 func New() App {
 	styles := theme.NewStyles(theme.Dark)
 
+	client := sidekiq.NewClient()
+
 	viewList := []views.View{
 		views.NewDashboard(),
-		views.NewBusy(),
-		views.NewQueues(),
-		views.NewRetries(),
-		views.NewScheduled(),
-		views.NewDead(),
+		views.NewBusy(client),
+		views.NewQueues(client),
+		views.NewRetries(client),
+		views.NewScheduled(client),
+		views.NewDead(client),
 	}
 
 	// Apply styles to views
@@ -112,13 +109,9 @@ func New() App {
 				Border:  lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")),
 			}),
 		),
-		styles:        styles,
-		darkMode:      true,
-		sidekiq:       sidekiq.NewClient(),
-		queuesPage:    1,
-		retriesPage:   1,
-		scheduledPage: 1,
-		deadPage:      1,
+		styles:   styles,
+		darkMode: true,
+		sidekiq:  client,
 	}
 }
 
@@ -161,187 +154,6 @@ func (a App) fetchStatsCmd() tea.Msg {
 	}
 }
 
-// fetchBusyDataCmd fetches busy data for the Busy view
-func (a App) fetchBusyDataCmd() tea.Msg {
-	ctx := context.Background()
-	data, err := a.sidekiq.GetBusyData(ctx)
-	if err != nil {
-		return connectionErrorMsg{err: err}
-	}
-	return views.BusyUpdateMsg{Data: data}
-}
-
-const queuesPageSize = 25
-const retriesPageSize = 25
-const scheduledPageSize = 25
-const deadPageSize = 25
-
-// fetchQueuesDataCmd fetches queues data for the Queues view
-func (a App) fetchQueuesDataCmd() tea.Msg {
-	ctx := context.Background()
-
-	// Get all queues
-	queues, err := a.sidekiq.GetQueues(ctx)
-	if err != nil {
-		return connectionErrorMsg{err: err}
-	}
-
-	// Build queue info list with size and latency
-	queueInfos := make([]*views.QueueInfo, len(queues))
-	for i, q := range queues {
-		size, _ := q.Size(ctx)
-		latency, _ := q.Latency(ctx)
-		queueInfos[i] = &views.QueueInfo{
-			Name:    q.Name(),
-			Size:    size,
-			Latency: latency,
-		}
-	}
-
-	// Get jobs from the selected queue (if any) with pagination
-	var jobs []*sidekiq.JobRecord
-	var totalSize int64
-	currentPage := a.queuesPage
-	totalPages := 1
-	selectedQueue := a.selectedQueue
-
-	// Clamp selected queue to valid range
-	if selectedQueue >= len(queues) {
-		selectedQueue = 0
-	}
-
-	if len(queues) > 0 && selectedQueue < len(queues) {
-		start := (currentPage - 1) * queuesPageSize
-		jobs, totalSize, _ = queues[selectedQueue].GetJobs(ctx, start, queuesPageSize)
-
-		// Calculate total pages
-		if totalSize > 0 {
-			totalPages = int((totalSize + queuesPageSize - 1) / queuesPageSize)
-		}
-
-		// Clamp current page to valid range
-		if currentPage > totalPages {
-			currentPage = totalPages
-		}
-		if currentPage < 1 {
-			currentPage = 1
-		}
-	}
-
-	return views.QueuesUpdateMsg{
-		Queues:        queueInfos,
-		Jobs:          jobs,
-		CurrentPage:   currentPage,
-		TotalPages:    totalPages,
-		SelectedQueue: selectedQueue,
-	}
-}
-
-// fetchRetriesDataCmd fetches retry jobs data for the Retries view
-func (a App) fetchRetriesDataCmd() tea.Msg {
-	ctx := context.Background()
-
-	currentPage := a.retriesPage
-	totalPages := 1
-
-	// Calculate pagination
-	start := (currentPage - 1) * retriesPageSize
-	jobs, totalSize, err := a.sidekiq.GetRetryJobs(ctx, start, retriesPageSize)
-	if err != nil {
-		return connectionErrorMsg{err: err}
-	}
-
-	// Calculate total pages
-	if totalSize > 0 {
-		totalPages = int((totalSize + retriesPageSize - 1) / retriesPageSize)
-	}
-
-	// Clamp current page to valid range
-	if currentPage > totalPages {
-		currentPage = totalPages
-	}
-	if currentPage < 1 {
-		currentPage = 1
-	}
-
-	return views.RetriesUpdateMsg{
-		Jobs:        jobs,
-		CurrentPage: currentPage,
-		TotalPages:  totalPages,
-		TotalSize:   totalSize,
-	}
-}
-
-// fetchScheduledDataCmd fetches scheduled jobs data for the Scheduled view
-func (a App) fetchScheduledDataCmd() tea.Msg {
-	ctx := context.Background()
-
-	currentPage := a.scheduledPage
-	totalPages := 1
-
-	// Calculate pagination
-	start := (currentPage - 1) * scheduledPageSize
-	jobs, totalSize, err := a.sidekiq.GetScheduledJobs(ctx, start, scheduledPageSize)
-	if err != nil {
-		return connectionErrorMsg{err: err}
-	}
-
-	// Calculate total pages
-	if totalSize > 0 {
-		totalPages = int((totalSize + scheduledPageSize - 1) / scheduledPageSize)
-	}
-
-	// Clamp current page to valid range
-	if currentPage > totalPages {
-		currentPage = totalPages
-	}
-	if currentPage < 1 {
-		currentPage = 1
-	}
-
-	return views.ScheduledUpdateMsg{
-		Jobs:        jobs,
-		CurrentPage: currentPage,
-		TotalPages:  totalPages,
-		TotalSize:   totalSize,
-	}
-}
-
-// fetchDeadDataCmd fetches dead jobs data for the Dead view
-func (a App) fetchDeadDataCmd() tea.Msg {
-	ctx := context.Background()
-
-	currentPage := a.deadPage
-	totalPages := 1
-
-	// Calculate pagination
-	start := (currentPage - 1) * deadPageSize
-	jobs, totalSize, err := a.sidekiq.GetDeadJobs(ctx, start, deadPageSize)
-	if err != nil {
-		return connectionErrorMsg{err: err}
-	}
-
-	// Calculate total pages
-	if totalSize > 0 {
-		totalPages = int((totalSize + deadPageSize - 1) / deadPageSize)
-	}
-
-	// Clamp current page to valid range
-	if currentPage > totalPages {
-		currentPage = totalPages
-	}
-	if currentPage < 1 {
-		currentPage = 1
-	}
-
-	return views.DeadUpdateMsg{
-		Jobs:        jobs,
-		CurrentPage: currentPage,
-		TotalPages:  totalPages,
-		TotalSize:   totalSize,
-	}
-}
-
 // Update implements tea.Model
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
@@ -353,29 +165,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a.fetchStatsCmd()
 		})
 
-		// Additionally fetch view-specific data
-		switch a.activeView {
-		case 1: // Busy view
-			cmds = append(cmds, func() tea.Msg {
-				return a.fetchBusyDataCmd()
-			})
-		case 2: // Queues view
-			cmds = append(cmds, func() tea.Msg {
-				return a.fetchQueuesDataCmd()
-			})
-		case 3: // Retries view
-			cmds = append(cmds, func() tea.Msg {
-				return a.fetchRetriesDataCmd()
-			})
-		case 4: // Scheduled view
-			cmds = append(cmds, func() tea.Msg {
-				return a.fetchScheduledDataCmd()
-			})
-		case 5: // Dead view
-			cmds = append(cmds, func() tea.Msg {
-				return a.fetchDeadDataCmd()
-			})
-		}
+		// Broadcast refresh to active view (views now fetch their own data)
+		updatedView, cmd := a.views[a.activeView].Update(views.RefreshMsg{})
+		a.views[a.activeView] = updatedView
+		cmds = append(cmds, cmd)
 
 		cmds = append(cmds, tickCmd())
 
@@ -383,41 +176,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Store the connection error
 		a.connectionError = msg.err
 
-	case views.QueuesPageRequestMsg:
-		// Handle page change request from Queues view
-		a.queuesPage = msg.Page
-		cmds = append(cmds, func() tea.Msg {
-			return a.fetchQueuesDataCmd()
-		})
-
-	case views.QueuesQueueSelectMsg:
-		// Handle queue selection from Queues view
-		a.selectedQueue = msg.Index
-		a.queuesPage = 1 // Reset to first page when changing queues
-		cmds = append(cmds, func() tea.Msg {
-			return a.fetchQueuesDataCmd()
-		})
-
-	case views.RetriesPageRequestMsg:
-		// Handle page change request from Retries view
-		a.retriesPage = msg.Page
-		cmds = append(cmds, func() tea.Msg {
-			return a.fetchRetriesDataCmd()
-		})
-
-	case views.ScheduledPageRequestMsg:
-		// Handle page change request from Scheduled view
-		a.scheduledPage = msg.Page
-		cmds = append(cmds, func() tea.Msg {
-			return a.fetchScheduledDataCmd()
-		})
-
-	case views.DeadPageRequestMsg:
-		// Handle page change request from Dead view
-		a.deadPage = msg.Page
-		cmds = append(cmds, func() tea.Msg {
-			return a.fetchDeadDataCmd()
-		})
+	case views.ConnectionErrorMsg:
+		// Handle connection errors from views
+		a.connectionError = msg.Err
 
 	case tea.KeyMsg:
 		// Handle global keybindings first
@@ -436,42 +197,22 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, a.keys.View2):
 			a.activeView = 1
 			cmds = append(cmds, a.views[a.activeView].Init())
-			cmds = append(cmds, func() tea.Msg {
-				return a.fetchBusyDataCmd()
-			})
 
 		case key.Matches(msg, a.keys.View3):
 			a.activeView = 2
-			a.queuesPage = 1      // Reset to first page when switching to Queues view
-			a.selectedQueue = 0   // Reset to first queue when switching to Queues view
 			cmds = append(cmds, a.views[a.activeView].Init())
-			cmds = append(cmds, func() tea.Msg {
-				return a.fetchQueuesDataCmd()
-			})
 
 		case key.Matches(msg, a.keys.View4):
 			a.activeView = 3
-			a.retriesPage = 1 // Reset to first page when switching to Retries view
 			cmds = append(cmds, a.views[a.activeView].Init())
-			cmds = append(cmds, func() tea.Msg {
-				return a.fetchRetriesDataCmd()
-			})
 
 		case key.Matches(msg, a.keys.View5):
 			a.activeView = 4
-			a.scheduledPage = 1 // Reset to first page when switching to Scheduled view
 			cmds = append(cmds, a.views[a.activeView].Init())
-			cmds = append(cmds, func() tea.Msg {
-				return a.fetchScheduledDataCmd()
-			})
 
 		case key.Matches(msg, a.keys.View6):
 			a.activeView = 5
-			a.deadPage = 1 // Reset to first page when switching to Dead view
 			cmds = append(cmds, a.views[a.activeView].Init())
-			cmds = append(cmds, func() tea.Msg {
-				return a.fetchDeadDataCmd()
-			})
 
 		default:
 			// Pass to active view

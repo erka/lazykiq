@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -21,27 +22,20 @@ type QueueInfo struct {
 	Latency float64
 }
 
-// QueuesUpdateMsg carries queues data from App to Queues view
-type QueuesUpdateMsg struct {
-	Queues        []*QueueInfo
-	Jobs          []*sidekiq.JobRecord
-	CurrentPage   int
-	TotalPages    int
-	SelectedQueue int
+// queuesDataMsg carries queues data internally
+type queuesDataMsg struct {
+	queues        []*QueueInfo
+	jobs          []*sidekiq.JobRecord
+	currentPage   int
+	totalPages    int
+	selectedQueue int
 }
 
-// QueuesPageRequestMsg requests a specific page of jobs
-type QueuesPageRequestMsg struct {
-	Page int
-}
-
-// QueuesQueueSelectMsg requests selection of a specific queue by index (0-indexed)
-type QueuesQueueSelectMsg struct {
-	Index int
-}
+const queuesPageSize = 25
 
 // Queues shows the list of Sidekiq queues
 type Queues struct {
+	client        *sidekiq.Client
 	width         int
 	height        int
 	styles        Styles
@@ -55,8 +49,12 @@ type Queues struct {
 }
 
 // NewQueues creates a new Queues view
-func NewQueues() *Queues {
+func NewQueues(client *sidekiq.Client) *Queues {
 	return &Queues{
+		client:        client,
+		currentPage:   1,
+		totalPages:    1,
+		selectedQueue: 0,
 		table: table.New(
 			table.WithColumns(queueJobColumns),
 			table.WithEmptyMessage("No jobs in queue"),
@@ -64,53 +62,110 @@ func NewQueues() *Queues {
 	}
 }
 
+// fetchDataCmd fetches queues data from Redis
+func (q *Queues) fetchDataCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx := context.Background()
+
+		queues, err := q.client.GetQueues(ctx)
+		if err != nil {
+			return ConnectionErrorMsg{Err: err}
+		}
+
+		queueInfos := make([]*QueueInfo, len(queues))
+		for i, queue := range queues {
+			size, _ := queue.Size(ctx)
+			latency, _ := queue.Latency(ctx)
+			queueInfos[i] = &QueueInfo{
+				Name:    queue.Name(),
+				Size:    size,
+				Latency: latency,
+			}
+		}
+
+		var jobs []*sidekiq.JobRecord
+		var totalSize int64
+		currentPage := q.currentPage
+		totalPages := 1
+		selectedQueue := q.selectedQueue
+
+		if selectedQueue >= len(queues) {
+			selectedQueue = 0
+		}
+
+		if len(queues) > 0 && selectedQueue < len(queues) {
+			start := (currentPage - 1) * queuesPageSize
+			jobs, totalSize, _ = queues[selectedQueue].GetJobs(ctx, start, queuesPageSize)
+
+			if totalSize > 0 {
+				totalPages = int((totalSize + queuesPageSize - 1) / queuesPageSize)
+			}
+
+			if currentPage > totalPages {
+				currentPage = totalPages
+			}
+			if currentPage < 1 {
+				currentPage = 1
+			}
+		}
+
+		return queuesDataMsg{
+			queues:        queueInfos,
+			jobs:          jobs,
+			currentPage:   currentPage,
+			totalPages:    totalPages,
+			selectedQueue: selectedQueue,
+		}
+	}
+}
+
 // Init implements View
 func (q *Queues) Init() tea.Cmd {
-	return nil
+	q.currentPage = 1
+	q.selectedQueue = 0
+	return q.fetchDataCmd()
 }
 
 // Update implements View
 func (q *Queues) Update(msg tea.Msg) (View, tea.Cmd) {
 	switch msg := msg.(type) {
-	case QueuesUpdateMsg:
-		q.queues = msg.Queues
-		q.jobs = msg.Jobs
-		q.currentPage = msg.CurrentPage
-		q.totalPages = msg.TotalPages
-		q.selectedQueue = msg.SelectedQueue
+	case queuesDataMsg:
+		q.queues = msg.queues
+		q.jobs = msg.jobs
+		q.currentPage = msg.currentPage
+		q.totalPages = msg.totalPages
+		q.selectedQueue = msg.selectedQueue
 		q.ready = true
 		q.updateTableRows()
 		return q, nil
 
+	case RefreshMsg:
+		return q, q.fetchDataCmd()
+
 	case tea.KeyMsg:
-		// Handle queue selection with alt+1-9
 		switch msg.String() {
 		case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
-			// Extract the digit from the key
-			idx := int(msg.String()[4] - '1') // "alt+1" -> 0, "alt+2" -> 1, etc.
-			if idx >= 0 && idx < len(q.queues) {
-				return q, func() tea.Msg {
-					return QueuesQueueSelectMsg{Index: idx}
-				}
+			idx := int(msg.String()[4] - '1')
+			if idx >= 0 && idx < len(q.queues) && q.selectedQueue != idx {
+				q.selectedQueue = idx
+				q.currentPage = 1
+				return q, q.fetchDataCmd()
 			}
 			return q, nil
 		case "alt+left", "[":
 			if q.currentPage > 1 {
-				return q, func() tea.Msg {
-					return QueuesPageRequestMsg{Page: q.currentPage - 1}
-				}
+				q.currentPage--
+				return q, q.fetchDataCmd()
 			}
 			return q, nil
 		case "alt+right", "]":
 			if q.currentPage < q.totalPages {
-				return q, func() tea.Msg {
-					return QueuesPageRequestMsg{Page: q.currentPage + 1}
-				}
+				q.currentPage++
+				return q, q.fetchDataCmd()
 			}
 			return q, nil
 		}
 
-		// Pass other keys to table for navigation
 		q.table, _ = q.table.Update(msg)
 		return q, nil
 	}
