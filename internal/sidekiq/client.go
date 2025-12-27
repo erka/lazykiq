@@ -40,15 +40,12 @@ type Process struct {
 	StartedAt   int64    // From info.started_at (Unix timestamp)
 }
 
-// Job represents an active Sidekiq job
+// Job represents an active Sidekiq job (currently running)
 type Job struct {
-	ProcessIdentity string
-	ThreadID        string // Base-36 encoded TID
-	JID             string // Job ID
-	Queue           string
-	Class           string // Worker class name
-	Args            []interface{}
-	RunAt           int64 // Unix timestamp
+	*JobRecord               // embedded job data from payload
+	ProcessIdentity string   // process identity running this job
+	ThreadID        string   // Base-36 encoded TID
+	RunAt           int64    // Unix timestamp when job started
 }
 
 // BusyData holds process and job information
@@ -266,28 +263,18 @@ func (c *Client) GetBusyData(ctx context.Context) (BusyData, error) {
 				ThreadID:        tid,
 			}
 
-			// Get queue and run_at from work data
-			if queue, ok := workData["queue"].(string); ok {
-				job.Queue = queue
-			}
+			// Get run_at from work data
 			if runAt, ok := workData["run_at"].(float64); ok {
 				job.RunAt = int64(runAt)
 			}
 
-			// Parse nested payload JSON
+			// Parse payload as JobRecord (queue is inside payload, fallback to workData)
 			if payloadStr, ok := workData["payload"].(string); ok {
-				var payload map[string]interface{}
-				if err := json.Unmarshal([]byte(payloadStr), &payload); err == nil {
-					if jid, ok := payload["jid"].(string); ok {
-						job.JID = jid
-					}
-					if class, ok := payload["class"].(string); ok {
-						job.Class = class
-					}
-					if args, ok := payload["args"].([]interface{}); ok {
-						job.Args = args
-					}
+				queueName := ""
+				if q, ok := workData["queue"].(string); ok {
+					queueName = q
 				}
+				job.JobRecord = NewJobRecord(payloadStr, queueName)
 			}
 
 			data.Jobs = append(data.Jobs, job)

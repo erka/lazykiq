@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
+	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/table"
@@ -27,9 +28,14 @@ type Busy struct {
 	height          int
 	styles          Styles
 	data            sidekiq.BusyData
+	filteredJobs    []sidekiq.Job // jobs filtered by selectedProcess
 	table           table.Model
 	ready           bool
 	selectedProcess int // -1 = all, 0-8 = specific process index
+
+	// Job detail state
+	showDetail bool
+	jobDetail  jobdetail.Model
 }
 
 // NewBusy creates a new Busy view
@@ -41,6 +47,7 @@ func NewBusy(client *sidekiq.Client) *Busy {
 			table.WithColumns(jobColumns),
 			table.WithEmptyMessage("No active jobs"),
 		),
+		jobDetail: jobdetail.New(),
 	}
 }
 
@@ -58,11 +65,25 @@ func (b *Busy) fetchDataCmd() tea.Cmd {
 
 // Init implements View
 func (b *Busy) Init() tea.Cmd {
+	b.showDetail = false
 	return b.fetchDataCmd()
 }
 
 // Update implements View
 func (b *Busy) Update(msg tea.Msg) (View, tea.Cmd) {
+	// If showing detail, delegate to detail component
+	if b.showDetail {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				b.showDetail = false
+				return b, nil
+			}
+		}
+		b.jobDetail, _ = b.jobDetail.Update(msg)
+		return b, nil
+	}
+
 	switch msg := msg.(type) {
 	case busyDataMsg:
 		b.data = msg.data
@@ -88,6 +109,13 @@ func (b *Busy) Update(msg tea.Msg) (View, tea.Cmd) {
 				b.updateTableRows()
 			}
 			return b, nil
+		case "enter":
+			// Show detail for selected job
+			if idx := b.table.Cursor(); idx >= 0 && idx < len(b.filteredJobs) {
+				b.jobDetail.SetJob(b.filteredJobs[idx].JobRecord)
+				b.showDetail = true
+			}
+			return b, nil
 		}
 
 		b.table, _ = b.table.Update(msg)
@@ -99,6 +127,10 @@ func (b *Busy) Update(msg tea.Msg) (View, tea.Cmd) {
 
 // View implements View
 func (b *Busy) View() string {
+	if b.showDetail {
+		return b.renderJobDetail()
+	}
+
 	if !b.ready {
 		return b.renderMessage("Loading...")
 	}
@@ -138,6 +170,8 @@ func (b *Busy) SetSize(width, height int) View {
 	b.width = width
 	b.height = height
 	b.updateTableSize()
+	// Update job detail size (full size, component handles its own borders)
+	b.jobDetail.SetSize(width, height)
 	return b
 }
 
@@ -150,6 +184,16 @@ func (b *Busy) SetStyles(styles Styles) View {
 		Header:    styles.TableHeader,
 		Selected:  styles.TableSelected,
 		Separator: styles.TableSeparator,
+	})
+	b.jobDetail.SetStyles(jobdetail.Styles{
+		Title:       styles.Title,
+		Label:       styles.Muted,
+		Value:       styles.Text,
+		JSON:        styles.Text,
+		Border:      styles.BorderStyle,
+		PanelTitle:  styles.Title,
+		FocusBorder: styles.Text,
+		Muted:       styles.Muted,
 	})
 	return b
 }
@@ -271,12 +315,16 @@ func (b *Busy) updateTableRows() {
 		selectedIdentity = b.data.Processes[b.selectedProcess].Identity
 	}
 
+	// Filter jobs and build table rows
+	b.filteredJobs = make([]sidekiq.Job, 0, len(b.data.Jobs))
 	rows := make([]table.Row, 0, len(b.data.Jobs))
 	for _, job := range b.data.Jobs {
 		// Filter by selected process if one is selected
 		if selectedIdentity != "" && job.ProcessIdentity != selectedIdentity {
 			continue
 		}
+
+		b.filteredJobs = append(b.filteredJobs, job)
 
 		processID := job.ProcessIdentity
 		parts := strings.Split(processID, ":")
@@ -287,11 +335,11 @@ func (b *Busy) updateTableRows() {
 		row := table.Row{
 			processID,
 			job.ThreadID,
-			job.JID,
-			job.Queue,
+			job.JID(),
+			job.Queue(),
 			format.Duration(time.Now().Unix() - job.RunAt),
-			job.Class,
-			format.Args(job.Args),
+			job.DisplayClass(),
+			format.Args(job.Args()),
 		}
 		rows = append(rows, row)
 	}
@@ -365,4 +413,11 @@ func (b *Busy) renderMessage(msg string) string {
 	}, "Active Jobs", msg, b.width, boxHeight)
 
 	return header + "\n" + box
+}
+
+// renderJobDetail renders the job detail view
+func (b *Busy) renderJobDetail() string {
+	// Resize to account for missing process list header area
+	b.jobDetail.SetSize(b.width, b.height-1)
+	return b.jobDetail.View()
 }

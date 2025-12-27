@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
+	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/table"
@@ -25,7 +26,7 @@ type QueueInfo struct {
 // queuesDataMsg carries queues data internally
 type queuesDataMsg struct {
 	queues        []*QueueInfo
-	jobs          []*sidekiq.JobRecord
+	jobs          []*sidekiq.PositionedEntry
 	currentPage   int
 	totalPages    int
 	selectedQueue int
@@ -40,12 +41,16 @@ type Queues struct {
 	height        int
 	styles        Styles
 	queues        []*QueueInfo
-	jobs          []*sidekiq.JobRecord
+	jobs          []*sidekiq.PositionedEntry
 	table         table.Model
 	ready         bool
 	currentPage   int
 	totalPages    int
 	selectedQueue int
+
+	// Job detail state
+	showDetail bool
+	jobDetail  jobdetail.Model
 }
 
 // NewQueues creates a new Queues view
@@ -59,6 +64,7 @@ func NewQueues(client *sidekiq.Client) *Queues {
 			table.WithColumns(queueJobColumns),
 			table.WithEmptyMessage("No jobs in queue"),
 		),
+		jobDetail: jobdetail.New(),
 	}
 }
 
@@ -83,7 +89,7 @@ func (q *Queues) fetchDataCmd() tea.Cmd {
 			}
 		}
 
-		var jobs []*sidekiq.JobRecord
+		var jobs []*sidekiq.PositionedEntry
 		var totalSize int64
 		currentPage := q.currentPage
 		totalPages := 1
@@ -123,11 +129,25 @@ func (q *Queues) fetchDataCmd() tea.Cmd {
 func (q *Queues) Init() tea.Cmd {
 	q.currentPage = 1
 	q.selectedQueue = 0
+	q.showDetail = false
 	return q.fetchDataCmd()
 }
 
 // Update implements View
 func (q *Queues) Update(msg tea.Msg) (View, tea.Cmd) {
+	// If showing detail, delegate to detail component
+	if q.showDetail {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				q.showDetail = false
+				return q, nil
+			}
+		}
+		q.jobDetail, _ = q.jobDetail.Update(msg)
+		return q, nil
+	}
+
 	switch msg := msg.(type) {
 	case queuesDataMsg:
 		q.queues = msg.queues
@@ -164,6 +184,13 @@ func (q *Queues) Update(msg tea.Msg) (View, tea.Cmd) {
 				return q, q.fetchDataCmd()
 			}
 			return q, nil
+		case "enter":
+			// Show detail for selected job
+			if idx := q.table.Cursor(); idx >= 0 && idx < len(q.jobs) {
+				q.jobDetail.SetJob(q.jobs[idx].JobRecord)
+				q.showDetail = true
+			}
+			return q, nil
 		}
 
 		q.table, _ = q.table.Update(msg)
@@ -175,6 +202,10 @@ func (q *Queues) Update(msg tea.Msg) (View, tea.Cmd) {
 
 // View implements View
 func (q *Queues) View() string {
+	if q.showDetail {
+		return q.renderJobDetail()
+	}
+
 	if !q.ready {
 		return q.renderMessage("Loading...")
 	}
@@ -212,6 +243,8 @@ func (q *Queues) SetSize(width, height int) View {
 	q.width = width
 	q.height = height
 	q.updateTableSize()
+	// Update job detail size (full size, component handles its own borders)
+	q.jobDetail.SetSize(width, height)
 	return q
 }
 
@@ -224,6 +257,16 @@ func (q *Queues) SetStyles(styles Styles) View {
 		Header:    styles.TableHeader,
 		Selected:  styles.TableSelected,
 		Separator: styles.TableSeparator,
+	})
+	q.jobDetail.SetStyles(jobdetail.Styles{
+		Title:       styles.Title,
+		Label:       styles.Muted,
+		Value:       styles.Text,
+		JSON:        styles.Text,
+		Border:      styles.BorderStyle,
+		PanelTitle:  styles.Title,
+		FocusBorder: styles.Text,
+		Muted:       styles.Muted,
 	})
 	return q
 }
@@ -385,4 +428,11 @@ func (q *Queues) renderMessage(msg string) string {
 	}, "Jobs", msg, q.width, boxHeight)
 
 	return header + "\n" + box
+}
+
+// renderJobDetail renders the job detail view
+func (q *Queues) renderJobDetail() string {
+	// Resize to account for missing queue list header area
+	q.jobDetail.SetSize(q.width, q.height-1)
+	return q.jobDetail.View()
 }

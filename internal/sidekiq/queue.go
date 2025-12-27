@@ -100,22 +100,28 @@ func (q *Queue) Latency(ctx context.Context) (float64, error) {
 // JobRecord represents a pending job within a Sidekiq queue.
 // Mirrors Sidekiq::JobRecord
 type JobRecord struct {
-	value   string                 // the underlying String in Redis
-	item    map[string]interface{} // the parsed job data
-	queue   string                 // the queue associated with this job
-	Position int                   // position in queue (for display)
+	value string                 // the underlying String in Redis
+	item  map[string]interface{} // the parsed job data
+	queue string                 // the queue associated with this job
 }
 
 // NewJobRecord creates a JobRecord from raw JSON data.
-func NewJobRecord(value string, queueName string, position int) *JobRecord {
+// If queueName is empty, it will be extracted from the parsed JSON item.
+func NewJobRecord(value string, queueName string) *JobRecord {
 	jr := &JobRecord{
-		value:    value,
-		queue:    queueName,
-		Position: position,
+		value: value,
+		queue: queueName,
 	}
 
 	if err := json.Unmarshal([]byte(value), &jr.item); err != nil {
 		jr.item = make(map[string]interface{})
+	}
+
+	// Extract queue from item if not provided
+	if jr.queue == "" {
+		if q, ok := jr.item["queue"].(string); ok {
+			jr.queue = q
+		}
 	}
 
 	return jr
@@ -188,10 +194,62 @@ func (jr *JobRecord) Value() string {
 	return jr.value
 }
 
+// ErrorClass returns the error class if this job failed.
+func (jr *JobRecord) ErrorClass() string {
+	if errClass, ok := jr.item["error_class"].(string); ok {
+		return errClass
+	}
+	return ""
+}
+
+// ErrorMessage returns the error message if this job failed.
+func (jr *JobRecord) ErrorMessage() string {
+	if errMsg, ok := jr.item["error_message"].(string); ok {
+		return errMsg
+	}
+	return ""
+}
+
+// HasError returns true if this job has error information.
+func (jr *JobRecord) HasError() bool {
+	_, ok := jr.item["error_class"]
+	return ok
+}
+
+// RetryCount returns the number of times this job has been retried.
+func (jr *JobRecord) RetryCount() int {
+	if rc, ok := jr.item["retry_count"].(float64); ok {
+		return int(rc)
+	}
+	return 0
+}
+
+// FailedAt returns the timestamp when the job failed (0 if not failed).
+func (jr *JobRecord) FailedAt() float64 {
+	if failedAt, ok := jr.item["failed_at"].(float64); ok {
+		return failedAt
+	}
+	return 0
+}
+
+// RetriedAt returns the timestamp of the last retry (0 if never retried).
+func (jr *JobRecord) RetriedAt() float64 {
+	if retriedAt, ok := jr.item["retried_at"].(float64); ok {
+		return retriedAt
+	}
+	return 0
+}
+
+// PositionedEntry wraps a JobRecord with its position in the queue.
+type PositionedEntry struct {
+	*JobRecord       // embedded for method promotion
+	Position   int
+}
+
 // GetJobs fetches jobs from the queue with pagination.
 // start is 0-indexed, count is the number of jobs to fetch.
 // Jobs are returned newest-first (matching Sidekiq's default display order).
-func (q *Queue) GetJobs(ctx context.Context, start, count int) ([]*JobRecord, int64, error) {
+func (q *Queue) GetJobs(ctx context.Context, start, count int) ([]*PositionedEntry, int64, error) {
 	// Get total size for position calculation
 	size, err := q.Size(ctx)
 	if err != nil {
@@ -209,11 +267,14 @@ func (q *Queue) GetJobs(ctx context.Context, start, count int) ([]*JobRecord, in
 		return nil, size, err
 	}
 
-	jobs := make([]*JobRecord, len(entries))
+	jobs := make([]*PositionedEntry, len(entries))
 	for i, entry := range entries {
 		// Position is calculated as total_size - index (descending, matching Sidekiq UI)
 		position := int(size) - start - i
-		jobs[i] = NewJobRecord(entry, q.name, position)
+		jobs[i] = &PositionedEntry{
+			JobRecord: NewJobRecord(entry, q.name),
+			Position:  position,
+		}
 	}
 
 	return jobs, size, nil

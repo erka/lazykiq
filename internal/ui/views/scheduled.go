@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
+	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/table"
@@ -36,6 +37,10 @@ type Scheduled struct {
 	currentPage int
 	totalPages  int
 	totalSize   int64
+
+	// Job detail state
+	showDetail bool
+	jobDetail  jobdetail.Model
 }
 
 // NewScheduled creates a new Scheduled view
@@ -48,6 +53,7 @@ func NewScheduled(client *sidekiq.Client) *Scheduled {
 			table.WithColumns(scheduledJobColumns),
 			table.WithEmptyMessage("No scheduled jobs"),
 		),
+		jobDetail: jobdetail.New(),
 	}
 }
 
@@ -88,11 +94,25 @@ func (s *Scheduled) fetchDataCmd() tea.Cmd {
 // Init implements View
 func (s *Scheduled) Init() tea.Cmd {
 	s.currentPage = 1
+	s.showDetail = false
 	return s.fetchDataCmd()
 }
 
 // Update implements View
 func (s *Scheduled) Update(msg tea.Msg) (View, tea.Cmd) {
+	// If showing detail, delegate to detail component
+	if s.showDetail {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				s.showDetail = false
+				return s, nil
+			}
+		}
+		s.jobDetail, _ = s.jobDetail.Update(msg)
+		return s, nil
+	}
+
 	switch msg := msg.(type) {
 	case scheduledDataMsg:
 		s.jobs = msg.jobs
@@ -120,6 +140,13 @@ func (s *Scheduled) Update(msg tea.Msg) (View, tea.Cmd) {
 				return s, s.fetchDataCmd()
 			}
 			return s, nil
+		case "enter":
+			// Show detail for selected job
+			if idx := s.table.Cursor(); idx >= 0 && idx < len(s.jobs) {
+				s.jobDetail.SetJob(s.jobs[idx].JobRecord)
+				s.showDetail = true
+			}
+			return s, nil
 		}
 
 		s.table, _ = s.table.Update(msg)
@@ -131,6 +158,10 @@ func (s *Scheduled) Update(msg tea.Msg) (View, tea.Cmd) {
 
 // View implements View
 func (s *Scheduled) View() string {
+	if s.showDetail {
+		return s.renderJobDetail()
+	}
+
 	if !s.ready {
 		return s.renderMessage("Loading...")
 	}
@@ -165,6 +196,8 @@ func (s *Scheduled) SetSize(width, height int) View {
 	s.width = width
 	s.height = height
 	s.updateTableSize()
+	// Update job detail size (full size, component handles its own borders)
+	s.jobDetail.SetSize(width, height)
 	return s
 }
 
@@ -177,6 +210,16 @@ func (s *Scheduled) SetStyles(styles Styles) View {
 		Header:    styles.TableHeader,
 		Selected:  styles.TableSelected,
 		Separator: styles.TableSeparator,
+	})
+	s.jobDetail.SetStyles(jobdetail.Styles{
+		Title:       styles.Title,
+		Label:       styles.Muted,
+		Value:       styles.Text,
+		JSON:        styles.Text,
+		Border:      styles.BorderStyle,
+		PanelTitle:  styles.Title,
+		FocusBorder: styles.Text,
+		Muted:       styles.Muted,
 	})
 	return s
 }
@@ -243,4 +286,9 @@ func (s *Scheduled) renderJobsBox() string {
 		jobsbox.WithSize(s.width, s.height),
 	)
 	return box.View()
+}
+
+// renderJobDetail renders the job detail view
+func (s *Scheduled) renderJobDetail() string {
+	return s.jobDetail.View()
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
+	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/table"
@@ -36,6 +37,10 @@ type Dead struct {
 	currentPage int
 	totalPages  int
 	totalSize   int64
+
+	// Job detail state
+	showDetail bool
+	jobDetail  jobdetail.Model
 }
 
 // NewDead creates a new Dead view
@@ -48,6 +53,7 @@ func NewDead(client *sidekiq.Client) *Dead {
 			table.WithColumns(deadJobColumns),
 			table.WithEmptyMessage("No dead jobs"),
 		),
+		jobDetail: jobdetail.New(),
 	}
 }
 
@@ -88,11 +94,25 @@ func (d *Dead) fetchDataCmd() tea.Cmd {
 // Init implements View
 func (d *Dead) Init() tea.Cmd {
 	d.currentPage = 1
+	d.showDetail = false
 	return d.fetchDataCmd()
 }
 
 // Update implements View
 func (d *Dead) Update(msg tea.Msg) (View, tea.Cmd) {
+	// If showing detail, delegate to detail component
+	if d.showDetail {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				d.showDetail = false
+				return d, nil
+			}
+		}
+		d.jobDetail, _ = d.jobDetail.Update(msg)
+		return d, nil
+	}
+
 	switch msg := msg.(type) {
 	case deadDataMsg:
 		d.jobs = msg.jobs
@@ -120,6 +140,13 @@ func (d *Dead) Update(msg tea.Msg) (View, tea.Cmd) {
 				return d, d.fetchDataCmd()
 			}
 			return d, nil
+		case "enter":
+			// Show detail for selected job
+			if idx := d.table.Cursor(); idx >= 0 && idx < len(d.jobs) {
+				d.jobDetail.SetJob(d.jobs[idx].JobRecord)
+				d.showDetail = true
+			}
+			return d, nil
 		}
 
 		d.table, _ = d.table.Update(msg)
@@ -131,6 +158,10 @@ func (d *Dead) Update(msg tea.Msg) (View, tea.Cmd) {
 
 // View implements View
 func (d *Dead) View() string {
+	if d.showDetail {
+		return d.renderJobDetail()
+	}
+
 	if !d.ready {
 		return d.renderMessage("Loading...")
 	}
@@ -165,6 +196,8 @@ func (d *Dead) SetSize(width, height int) View {
 	d.width = width
 	d.height = height
 	d.updateTableSize()
+	// Update job detail size (full size, component handles its own borders)
+	d.jobDetail.SetSize(width, height)
 	return d
 }
 
@@ -177,6 +210,16 @@ func (d *Dead) SetStyles(styles Styles) View {
 		Header:    styles.TableHeader,
 		Selected:  styles.TableSelected,
 		Separator: styles.TableSeparator,
+	})
+	d.jobDetail.SetStyles(jobdetail.Styles{
+		Title:       styles.Title,
+		Label:       styles.Muted,
+		Value:       styles.Text,
+		JSON:        styles.Text,
+		Border:      styles.BorderStyle,
+		PanelTitle:  styles.Title,
+		FocusBorder: styles.Text,
+		Muted:       styles.Muted,
 	})
 	return d
 }
@@ -255,4 +298,9 @@ func (d *Dead) renderJobsBox() string {
 		jobsbox.WithSize(d.width, d.height),
 	)
 	return box.View()
+}
+
+// renderJobDetail renders the job detail view
+func (d *Dead) renderJobDetail() string {
+	return d.jobDetail.View()
 }

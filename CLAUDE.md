@@ -129,3 +129,6 @@ bubbletea, lipgloss, bubbles/key, go-redis/v9
 - Horizontal scroll: apply offset to plain text BEFORE lipgloss styling. Slicing ANSI-escaped strings breaks escape sequences.
 - Scroll state: clamp xOffset/yOffset when data or dimensions change (new data may have different max width)
 - Manual vertical scroll (line slicing) is simpler than bubbles/viewport for tables with selection
+- Height calculations: app.go renders metrics bar (top) + view content + navbar (bottom). Views must output exactly the same number of lines consistently. If view outputs too many lines, metrics bar gets pushed off screen. Specific issues:
+  - Title is part of the border line, not a separate line (so -2 for borders, not -3)
+  - Views with header areas outside the main box (Busy, Queues) get extra height (+3 instead of +2). When showing alternative content (like job detail), must output the same total lines as normal view - add empty lines at top if needed to match the header area
