@@ -1,9 +1,10 @@
-# Compiled binary
+# Build files
+.gocache
+/dist
 /lazykiq
 
 # Temp files
 /tmp
-.gocache
 
 # IDE configurations
 /.idea

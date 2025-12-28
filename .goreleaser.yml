@@ -1,0 +1,56 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+gomod:
+  proxy: true
+  env:
+    - GOPROXY=https://proxy.golang.org,direct
+    - GOSUMDB=sum.golang.org
+    - GOPRIVATE=github.com/kpumuk/lazykiq
+  mod: mod
+
+builds:
+  - main: ./cmd/lazykiq
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -tags=nodbus
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - formats:
+      - binary
+    name_template: >-
+      lazykiq-
+      {{ .Version }}-
+      {{ .Os }}-
+      {{ if eq .Arch "amd64" }}x86_64
+      {{ else }}{{ .Arch }}{{ end }}
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore"
+      - "merge conflict"
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+      - go mod tidy
