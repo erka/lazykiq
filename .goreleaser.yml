@@ -21,6 +21,7 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
@@ -32,21 +33,22 @@ builds:
       - -X main.BuiltBy=goreleaser
 
 archives:
-  - formats:
-      - binary
-    name_template: >-
+  - name_template: >-
       lazykiq-
       {{- .Version }}-
       {{- .Os }}-
       {{- if eq .Arch "amd64" }}x86_64
       {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [ zip ]
 checksum:
   name_template: "checksums.txt"
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
 changelog:
-  use: github
+  use: github-native
   filters:
     exclude:
       - "^docs:"
