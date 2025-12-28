@@ -32,17 +32,16 @@ archives:
       - binary
     name_template: >-
       lazykiq-
-      {{ .Version }}-
-      {{ .Os }}-
-      {{ if eq .Arch "amd64" }}x86_64
-      {{ else }}{{ .Arch }}{{ end }}
+      {{- .Version }}-
+      {{- .Os }}-
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
 checksum:
   name_template: "checksums.txt"
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
 changelog:
-  sort: asc
   use: github
   filters:
     exclude:
