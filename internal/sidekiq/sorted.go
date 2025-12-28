@@ -2,9 +2,14 @@ package sidekiq
 
 import (
 	"context"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/redis/go-redis/v9"
 )
+
+const sortedSetScanCount int64 = 100
 
 // SortedEntry represents a job stored in a Sidekiq sorted set (dead, retry, schedule).
 // It embeds a JobRecord for the job data and adds the sorted set score (timestamp).
@@ -58,9 +63,51 @@ func (c *Client) getSortedSetJobs(ctx context.Context, key string, start, count 
 	return entries, size, nil
 }
 
+func (c *Client) scanSortedSetJobs(ctx context.Context, key, match string, reverse bool) ([]*SortedEntry, error) {
+	if match != "" && !strings.Contains(match, "*") {
+		match = "*" + match + "*"
+	}
+
+	var cursor uint64
+	var entries []*SortedEntry
+	for {
+		values, nextCursor, err := c.redis.ZScan(ctx, key, cursor, match, sortedSetScanCount).Result()
+		if err != nil {
+			return nil, err
+		}
+
+		for i := 0; i+1 < len(values); i += 2 {
+			score, err := strconv.ParseFloat(values[i+1], 64)
+			if err != nil {
+				continue
+			}
+			entries = append(entries, NewSortedEntry(values[i], score))
+		}
+
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		if reverse {
+			return entries[i].Score > entries[j].Score
+		}
+		return entries[i].Score < entries[j].Score
+	})
+
+	return entries, nil
+}
+
 // GetDeadJobs fetches dead jobs with pagination (newest first).
 func (c *Client) GetDeadJobs(ctx context.Context, start, count int) ([]*SortedEntry, int64, error) {
 	return c.getSortedSetJobs(ctx, "dead", start, count, true)
+}
+
+// ScanDeadJobs scans dead jobs using a match pattern (no paging).
+func (c *Client) ScanDeadJobs(ctx context.Context, match string) ([]*SortedEntry, error) {
+	return c.scanSortedSetJobs(ctx, "dead", match, true)
 }
 
 // GetRetryJobs fetches retry jobs with pagination (earliest retry first).
@@ -68,7 +115,17 @@ func (c *Client) GetRetryJobs(ctx context.Context, start, count int) ([]*SortedE
 	return c.getSortedSetJobs(ctx, "retry", start, count, false)
 }
 
+// ScanRetryJobs scans retry jobs using a match pattern (no paging).
+func (c *Client) ScanRetryJobs(ctx context.Context, match string) ([]*SortedEntry, error) {
+	return c.scanSortedSetJobs(ctx, "retry", match, false)
+}
+
 // GetScheduledJobs fetches scheduled jobs with pagination (earliest execution time first).
 func (c *Client) GetScheduledJobs(ctx context.Context, start, count int) ([]*SortedEntry, int64, error) {
 	return c.getSortedSetJobs(ctx, "schedule", start, count, false)
+}
+
+// ScanScheduledJobs scans scheduled jobs using a match pattern (no paging).
+func (c *Client) ScanScheduledJobs(ctx context.Context, match string) ([]*SortedEntry, error) {
+	return c.scanSortedSetJobs(ctx, "schedule", match, false)
 }

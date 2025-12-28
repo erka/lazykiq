@@ -181,6 +181,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.connectionError = msg.Err
 
 	case tea.KeyMsg:
+		if view, ok := a.views[a.activeView].(interface{ FilterFocused() bool }); ok && view.FilterFocused() {
+			updatedView, cmd := a.views[a.activeView].Update(msg)
+			a.views[a.activeView] = updatedView
+			return a, cmd
+		}
+
 		// Handle global keybindings first
 		switch {
 		case key.Matches(msg, a.keys.Quit):

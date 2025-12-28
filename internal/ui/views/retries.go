@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
+	"github.com/kpumuk/lazykiq/internal/ui/components/filterinput"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
@@ -37,6 +38,7 @@ type Retries struct {
 	currentPage int
 	totalPages  int
 	totalSize   int64
+	filter      filterinput.Model
 
 	// Job detail state
 	showDetail bool
@@ -49,6 +51,7 @@ func NewRetries(client *sidekiq.Client) *Retries {
 		client:      client,
 		currentPage: 1,
 		totalPages:  1,
+		filter:      filterinput.New(),
 		table: table.New(
 			table.WithColumns(retryJobColumns),
 			table.WithEmptyMessage("No retries"),
@@ -61,6 +64,20 @@ func NewRetries(client *sidekiq.Client) *Retries {
 func (r *Retries) fetchDataCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
+
+		if r.filter.Query() != "" {
+			jobs, err := r.client.ScanRetryJobs(ctx, r.filter.Query())
+			if err != nil {
+				return ConnectionErrorMsg{Err: err}
+			}
+
+			return retriesDataMsg{
+				jobs:        jobs,
+				currentPage: 1,
+				totalPages:  1,
+				totalSize:   int64(len(jobs)),
+			}
+		}
 
 		currentPage := r.currentPage
 		totalPages := 1
@@ -95,6 +112,7 @@ func (r *Retries) fetchDataCmd() tea.Cmd {
 func (r *Retries) Init() tea.Cmd {
 	r.currentPage = 1
 	r.showDetail = false
+	r.filter.Init()
 	return r.fetchDataCmd()
 }
 
@@ -126,15 +144,36 @@ func (r *Retries) Update(msg tea.Msg) (View, tea.Cmd) {
 	case RefreshMsg:
 		return r, r.fetchDataCmd()
 
+	case filterinput.ActionMsg:
+		if msg.Action != filterinput.ActionNone {
+			r.currentPage = 1
+			r.table.SetCursor(0)
+			return r, r.fetchDataCmd()
+		}
+		return r, nil
+
 	case tea.KeyMsg:
+		wasFocused := r.filter.Focused()
+		var cmd tea.Cmd
+		r.filter, cmd = r.filter.Update(msg)
+		if wasFocused || msg.String() == "/" || msg.String() == "esc" || msg.String() == "ctrl+u" {
+			return r, cmd
+		}
+
 		switch msg.String() {
 		case "alt+left", "[":
+			if r.filter.Query() != "" {
+				return r, nil
+			}
 			if r.currentPage > 1 {
 				r.currentPage--
 				return r, r.fetchDataCmd()
 			}
 			return r, nil
 		case "alt+right", "]":
+			if r.filter.Query() != "" {
+				return r, nil
+			}
 			if r.currentPage < r.totalPages {
 				r.currentPage++
 				return r, r.fetchDataCmd()
@@ -167,7 +206,7 @@ func (r *Retries) View() string {
 		return r.renderMessage("Loading...")
 	}
 
-	if len(r.jobs) == 0 && r.totalSize == 0 {
+	if len(r.jobs) == 0 && r.totalSize == 0 && r.filter.Query() == "" && !r.filter.Focused() {
 		return r.renderMessage("No retries")
 	}
 
@@ -202,6 +241,11 @@ func (r *Retries) SetSize(width, height int) View {
 	return r
 }
 
+// FilterFocused reports whether the filter input is capturing keys.
+func (r *Retries) FilterFocused() bool {
+	return r.filter.Focused()
+}
+
 // SetStyles implements View
 func (r *Retries) SetStyles(styles Styles) View {
 	r.styles = styles
@@ -211,6 +255,12 @@ func (r *Retries) SetStyles(styles Styles) View {
 		Header:    styles.TableHeader,
 		Selected:  styles.TableSelected,
 		Separator: styles.TableSeparator,
+	})
+	r.filter.SetStyles(filterinput.Styles{
+		Prompt:      styles.MetricLabel,
+		Text:        styles.Text,
+		Placeholder: styles.Muted,
+		Cursor:      styles.Text,
 	})
 	r.jobDetail.SetStyles(jobdetail.Styles{
 		Title:       styles.Title,
@@ -238,17 +288,24 @@ var retryJobColumns = []table.Column{
 // updateTableSize updates the table dimensions based on current view size
 func (r *Retries) updateTableSize() {
 	// Calculate table height: total height - box borders
-	tableHeight := r.height - 2
+	tableHeight := r.height - 3
 	if tableHeight < 3 {
 		tableHeight = 3
 	}
 	// Table width: view width - box borders - padding
 	tableWidth := r.width - 4
 	r.table.SetSize(tableWidth, tableHeight)
+	r.filter.SetWidth(tableWidth)
 }
 
 // updateTableRows converts job data to table rows
 func (r *Retries) updateTableRows() {
+	if r.filter.Query() != "" {
+		r.table.SetEmptyMessage("No matches")
+	} else {
+		r.table.SetEmptyMessage("No retries")
+	}
+
 	rows := make([]table.Row, 0, len(r.jobs))
 	now := time.Now().Unix()
 	for _, job := range r.jobs {
@@ -291,7 +348,7 @@ func (r *Retries) renderJobsBox() string {
 	meta := sizeInfo + sep + pageInfo
 
 	// Get table content
-	content := r.table.View()
+	content := r.filter.View() + "\n" + r.table.View()
 
 	box := jobsbox.New(
 		jobsbox.WithStyles(jobsbox.Styles{

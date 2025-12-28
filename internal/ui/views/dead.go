@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
+	"github.com/kpumuk/lazykiq/internal/ui/components/filterinput"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
@@ -37,6 +38,7 @@ type Dead struct {
 	currentPage int
 	totalPages  int
 	totalSize   int64
+	filter      filterinput.Model
 
 	// Job detail state
 	showDetail bool
@@ -49,6 +51,7 @@ func NewDead(client *sidekiq.Client) *Dead {
 		client:      client,
 		currentPage: 1,
 		totalPages:  1,
+		filter:      filterinput.New(),
 		table: table.New(
 			table.WithColumns(deadJobColumns),
 			table.WithEmptyMessage("No dead jobs"),
@@ -61,6 +64,20 @@ func NewDead(client *sidekiq.Client) *Dead {
 func (d *Dead) fetchDataCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
+
+		if d.filter.Query() != "" {
+			jobs, err := d.client.ScanDeadJobs(ctx, d.filter.Query())
+			if err != nil {
+				return ConnectionErrorMsg{Err: err}
+			}
+
+			return deadDataMsg{
+				jobs:        jobs,
+				currentPage: 1,
+				totalPages:  1,
+				totalSize:   int64(len(jobs)),
+			}
+		}
 
 		currentPage := d.currentPage
 		totalPages := 1
@@ -95,6 +112,7 @@ func (d *Dead) fetchDataCmd() tea.Cmd {
 func (d *Dead) Init() tea.Cmd {
 	d.currentPage = 1
 	d.showDetail = false
+	d.filter.Init()
 	return d.fetchDataCmd()
 }
 
@@ -126,15 +144,36 @@ func (d *Dead) Update(msg tea.Msg) (View, tea.Cmd) {
 	case RefreshMsg:
 		return d, d.fetchDataCmd()
 
+	case filterinput.ActionMsg:
+		if msg.Action != filterinput.ActionNone {
+			d.currentPage = 1
+			d.table.SetCursor(0)
+			return d, d.fetchDataCmd()
+		}
+		return d, nil
+
 	case tea.KeyMsg:
+		wasFocused := d.filter.Focused()
+		var cmd tea.Cmd
+		d.filter, cmd = d.filter.Update(msg)
+		if wasFocused || msg.String() == "/" || msg.String() == "esc" || msg.String() == "ctrl+u" {
+			return d, cmd
+		}
+
 		switch msg.String() {
 		case "alt+left", "[":
+			if d.filter.Query() != "" {
+				return d, nil
+			}
 			if d.currentPage > 1 {
 				d.currentPage--
 				return d, d.fetchDataCmd()
 			}
 			return d, nil
 		case "alt+right", "]":
+			if d.filter.Query() != "" {
+				return d, nil
+			}
 			if d.currentPage < d.totalPages {
 				d.currentPage++
 				return d, d.fetchDataCmd()
@@ -166,7 +205,7 @@ func (d *Dead) View() string {
 		return d.renderMessage("Loading...")
 	}
 
-	if len(d.jobs) == 0 && d.totalSize == 0 {
+	if len(d.jobs) == 0 && d.totalSize == 0 && d.filter.Query() == "" && !d.filter.Focused() {
 		return d.renderMessage("No dead jobs")
 	}
 
@@ -201,6 +240,11 @@ func (d *Dead) SetSize(width, height int) View {
 	return d
 }
 
+// FilterFocused reports whether the filter input is capturing keys.
+func (d *Dead) FilterFocused() bool {
+	return d.filter.Focused()
+}
+
 // SetStyles implements View
 func (d *Dead) SetStyles(styles Styles) View {
 	d.styles = styles
@@ -210,6 +254,12 @@ func (d *Dead) SetStyles(styles Styles) View {
 		Header:    styles.TableHeader,
 		Selected:  styles.TableSelected,
 		Separator: styles.TableSeparator,
+	})
+	d.filter.SetStyles(filterinput.Styles{
+		Prompt:      styles.MetricLabel,
+		Text:        styles.Text,
+		Placeholder: styles.Muted,
+		Cursor:      styles.Text,
 	})
 	d.jobDetail.SetStyles(jobdetail.Styles{
 		Title:       styles.Title,
@@ -236,17 +286,24 @@ var deadJobColumns = []table.Column{
 // updateTableSize updates the table dimensions based on current view size
 func (d *Dead) updateTableSize() {
 	// Calculate table height: total height - box borders
-	tableHeight := d.height - 2
+	tableHeight := d.height - 3
 	if tableHeight < 3 {
 		tableHeight = 3
 	}
 	// Table width: view width - box borders - padding
 	tableWidth := d.width - 4
 	d.table.SetSize(tableWidth, tableHeight)
+	d.filter.SetWidth(tableWidth)
 }
 
 // updateTableRows converts job data to table rows
 func (d *Dead) updateTableRows() {
+	if d.filter.Query() != "" {
+		d.table.SetEmptyMessage("No matches")
+	} else {
+		d.table.SetEmptyMessage("No dead jobs")
+	}
+
 	rows := make([]table.Row, 0, len(d.jobs))
 	now := time.Now().Unix()
 	for _, job := range d.jobs {
@@ -285,7 +342,7 @@ func (d *Dead) renderJobsBox() string {
 	meta := sizeInfo + sep + pageInfo
 
 	// Get table content
-	content := d.table.View()
+	content := d.filter.View() + "\n" + d.table.View()
 
 	box := jobsbox.New(
 		jobsbox.WithStyles(jobsbox.Styles{

@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
+	"github.com/kpumuk/lazykiq/internal/ui/components/filterinput"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
@@ -37,6 +38,7 @@ type Scheduled struct {
 	currentPage int
 	totalPages  int
 	totalSize   int64
+	filter      filterinput.Model
 
 	// Job detail state
 	showDetail bool
@@ -49,6 +51,7 @@ func NewScheduled(client *sidekiq.Client) *Scheduled {
 		client:      client,
 		currentPage: 1,
 		totalPages:  1,
+		filter:      filterinput.New(),
 		table: table.New(
 			table.WithColumns(scheduledJobColumns),
 			table.WithEmptyMessage("No scheduled jobs"),
@@ -61,6 +64,20 @@ func NewScheduled(client *sidekiq.Client) *Scheduled {
 func (s *Scheduled) fetchDataCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
+
+		if s.filter.Query() != "" {
+			jobs, err := s.client.ScanScheduledJobs(ctx, s.filter.Query())
+			if err != nil {
+				return ConnectionErrorMsg{Err: err}
+			}
+
+			return scheduledDataMsg{
+				jobs:        jobs,
+				currentPage: 1,
+				totalPages:  1,
+				totalSize:   int64(len(jobs)),
+			}
+		}
 
 		currentPage := s.currentPage
 		totalPages := 1
@@ -95,6 +112,7 @@ func (s *Scheduled) fetchDataCmd() tea.Cmd {
 func (s *Scheduled) Init() tea.Cmd {
 	s.currentPage = 1
 	s.showDetail = false
+	s.filter.Init()
 	return s.fetchDataCmd()
 }
 
@@ -126,15 +144,36 @@ func (s *Scheduled) Update(msg tea.Msg) (View, tea.Cmd) {
 	case RefreshMsg:
 		return s, s.fetchDataCmd()
 
+	case filterinput.ActionMsg:
+		if msg.Action != filterinput.ActionNone {
+			s.currentPage = 1
+			s.table.SetCursor(0)
+			return s, s.fetchDataCmd()
+		}
+		return s, nil
+
 	case tea.KeyMsg:
+		wasFocused := s.filter.Focused()
+		var cmd tea.Cmd
+		s.filter, cmd = s.filter.Update(msg)
+		if wasFocused || msg.String() == "/" || msg.String() == "esc" || msg.String() == "ctrl+u" {
+			return s, cmd
+		}
+
 		switch msg.String() {
 		case "alt+left", "[":
+			if s.filter.Query() != "" {
+				return s, nil
+			}
 			if s.currentPage > 1 {
 				s.currentPage--
 				return s, s.fetchDataCmd()
 			}
 			return s, nil
 		case "alt+right", "]":
+			if s.filter.Query() != "" {
+				return s, nil
+			}
 			if s.currentPage < s.totalPages {
 				s.currentPage++
 				return s, s.fetchDataCmd()
@@ -166,7 +205,7 @@ func (s *Scheduled) View() string {
 		return s.renderMessage("Loading...")
 	}
 
-	if len(s.jobs) == 0 && s.totalSize == 0 {
+	if len(s.jobs) == 0 && s.totalSize == 0 && s.filter.Query() == "" && !s.filter.Focused() {
 		return s.renderMessage("No scheduled jobs")
 	}
 
@@ -201,6 +240,11 @@ func (s *Scheduled) SetSize(width, height int) View {
 	return s
 }
 
+// FilterFocused reports whether the filter input is capturing keys.
+func (s *Scheduled) FilterFocused() bool {
+	return s.filter.Focused()
+}
+
 // SetStyles implements View
 func (s *Scheduled) SetStyles(styles Styles) View {
 	s.styles = styles
@@ -210,6 +254,12 @@ func (s *Scheduled) SetStyles(styles Styles) View {
 		Header:    styles.TableHeader,
 		Selected:  styles.TableSelected,
 		Separator: styles.TableSeparator,
+	})
+	s.filter.SetStyles(filterinput.Styles{
+		Prompt:      styles.MetricLabel,
+		Text:        styles.Text,
+		Placeholder: styles.Muted,
+		Cursor:      styles.Text,
 	})
 	s.jobDetail.SetStyles(jobdetail.Styles{
 		Title:       styles.Title,
@@ -235,17 +285,24 @@ var scheduledJobColumns = []table.Column{
 // updateTableSize updates the table dimensions based on current view size
 func (s *Scheduled) updateTableSize() {
 	// Calculate table height: total height - box borders
-	tableHeight := s.height - 2
+	tableHeight := s.height - 3
 	if tableHeight < 3 {
 		tableHeight = 3
 	}
 	// Table width: view width - box borders - padding
 	tableWidth := s.width - 4
 	s.table.SetSize(tableWidth, tableHeight)
+	s.filter.SetWidth(tableWidth)
 }
 
 // updateTableRows converts job data to table rows
 func (s *Scheduled) updateTableRows() {
+	if s.filter.Query() != "" {
+		s.table.SetEmptyMessage("No matches")
+	} else {
+		s.table.SetEmptyMessage("No scheduled jobs")
+	}
+
 	rows := make([]table.Row, 0, len(s.jobs))
 	now := time.Now().Unix()
 	for _, job := range s.jobs {
@@ -273,7 +330,7 @@ func (s *Scheduled) renderJobsBox() string {
 	meta := sizeInfo + sep + pageInfo
 
 	// Get table content
-	content := s.table.View()
+	content := s.filter.View() + "\n" + s.table.View()
 
 	box := jobsbox.New(
 		jobsbox.WithStyles(jobsbox.Styles{
