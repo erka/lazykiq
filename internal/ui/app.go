@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -236,21 +235,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.metrics.SetWidth(msg.Width)
 		a.navbar.SetWidth(msg.Width)
 
-		// Calculate content height (total - metrics - navbar - border)
-		// Border takes 2 lines (top + bottom)
-		contentHeight := msg.Height - a.metrics.Height() - a.navbar.Height() - 2
-		// Border takes 2 chars (left + right)
-		contentWidth := msg.Width - 2
+		// Calculate content size (total - metrics - navbar)
+		contentHeight := msg.Height - a.metrics.Height() - a.navbar.Height()
+		contentWidth := msg.Width
 		for i := range a.views {
-			// Busy (1) and Queues (2) views render their own border with header area outside, so give them extra height
-			if i == 1 || i == 2 {
-				a.views[i] = a.views[i].SetSize(contentWidth+2, contentHeight+3)
-			} else if i == 3 || i == 4 || i == 5 {
-				// Retries (3), Scheduled (4), and Dead (5) render their own border but have no header area outside
-				a.views[i] = a.views[i].SetSize(contentWidth+2, contentHeight+2)
-			} else {
-				a.views[i] = a.views[i].SetSize(contentWidth, contentHeight)
-			}
+			a.views[i] = a.views[i].SetSize(contentWidth, contentHeight)
 		}
 		a.errorPopup.SetSize(contentWidth, contentHeight)
 
@@ -280,18 +269,7 @@ func (a App) View() string {
 		return "Initializing..."
 	}
 
-	// Content area with border and title on border
-	title := a.views[a.activeView].Name()
-	contentHeight := a.height - a.metrics.Height() - a.navbar.Height() - 2
-	contentWidth := a.width - 2
-
-	var content string
-	// Busy (1), Queues (2), Retries (3), Scheduled (4), and Dead (5) views handle their own border
-	if a.activeView == 1 || a.activeView == 2 || a.activeView == 3 || a.activeView == 4 || a.activeView == 5 {
-		content = a.views[a.activeView].View()
-	} else {
-		content = a.renderBorderedBox(title, a.views[a.activeView].View(), contentWidth, contentHeight)
-	}
+	content := a.views[a.activeView].View()
 
 	// If there's a connection error, overlay the error popup
 	if a.connectionError != nil {
@@ -307,67 +285,6 @@ func (a App) View() string {
 		content,
 		a.navbar.View(),
 	)
-}
-
-// renderBorderedBox renders content in a box with title on the top border
-func (a App) renderBorderedBox(title, content string, width, height int) string {
-	border := lipgloss.RoundedBorder()
-	borderStyle := lipgloss.NewStyle().Foreground(a.styles.Theme.Border)
-	titleStyle := a.styles.ViewTitle
-
-	// Build top border with title
-	// ╭─ Title ─────────────────╮
-	titleText := " " + title + " "
-	styledTitle := titleStyle.Render(titleText)
-	titleWidth := lipgloss.Width(styledTitle)
-
-	topLeft := borderStyle.Render(border.TopLeft)
-	topRight := borderStyle.Render(border.TopRight)
-	hBar := borderStyle.Render(border.Top)
-
-	// Calculate remaining width for horizontal bars
-	remainingWidth := width - 2 - titleWidth // -2 for corners
-	leftPad := 1
-	rightPad := remainingWidth - leftPad
-	if rightPad < 0 {
-		rightPad = 0
-	}
-
-	topBorder := topLeft + strings.Repeat(hBar, leftPad) + styledTitle + strings.Repeat(hBar, rightPad) + topRight
-
-	// Build content area with side borders
-	vBar := borderStyle.Render(border.Left)
-	vBarRight := borderStyle.Render(border.Right)
-
-	innerWidth := width - 2
-	contentStyle := lipgloss.NewStyle().
-		Width(innerWidth).
-		Height(height)
-
-	renderedContent := contentStyle.Render(content)
-	contentLines := strings.Split(renderedContent, "\n")
-
-	var middleLines []string
-	for _, line := range contentLines {
-		// Pad line to inner width
-		lineWidth := lipgloss.Width(line)
-		if lineWidth < innerWidth {
-			line += strings.Repeat(" ", innerWidth-lineWidth)
-		}
-		middleLines = append(middleLines, vBar+line+vBarRight)
-	}
-
-	// Build bottom border
-	bottomLeft := borderStyle.Render(border.BottomLeft)
-	bottomRight := borderStyle.Render(border.BottomRight)
-	bottomBorder := bottomLeft + strings.Repeat(hBar, width-2) + bottomRight
-
-	// Combine all parts
-	result := topBorder + "\n"
-	result += strings.Join(middleLines, "\n") + "\n"
-	result += bottomBorder
-
-	return result
 }
 
 // applyTheme updates all components with the current theme

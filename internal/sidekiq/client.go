@@ -42,10 +42,10 @@ type Process struct {
 
 // Job represents an active Sidekiq job (currently running)
 type Job struct {
-	*JobRecord               // embedded job data from payload
-	ProcessIdentity string   // process identity running this job
-	ThreadID        string   // Base-36 encoded TID
-	RunAt           int64    // Unix timestamp when job started
+	*JobRecord             // embedded job data from payload
+	ProcessIdentity string // process identity running this job
+	ThreadID        string // Base-36 encoded TID
+	RunAt           int64  // Unix timestamp when job started
 }
 
 // BusyData holds process and job information

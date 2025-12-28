@@ -339,7 +339,7 @@ var queueJobColumns = []table.Column{
 // updateTableSize updates the table dimensions based on current view size
 func (q *Queues) updateTableSize() {
 	// Calculate table height: total height - queue list - box borders
-	queueListHeight := len(q.queues) + 1
+	queueListHeight := len(q.queues)
 	tableHeight := q.height - queueListHeight - 2
 	if tableHeight < 3 {
 		tableHeight = 3
@@ -395,7 +395,7 @@ func (q *Queues) renderJobsBox() string {
 	meta := sizeInfo + sep + pageInfo
 
 	// Calculate box height (account for queue list above)
-	queueListHeight := len(q.queues) + 1
+	queueListHeight := len(q.queues)
 	boxHeight := q.height - queueListHeight
 
 	// Get table content

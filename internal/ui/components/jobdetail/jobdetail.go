@@ -120,9 +120,9 @@ type Model struct {
 	focusRight bool
 
 	// Calculated dimensions
-	leftWidth   int
-	rightWidth  int
-	panelHeight int
+	leftWidth    int
+	rightWidth   int
+	panelHeight  int
 	maxJSONWidth int
 }
 

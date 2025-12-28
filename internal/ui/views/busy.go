@@ -297,7 +297,7 @@ var jobColumns = []table.Column{
 // updateTableSize updates the table dimensions based on current view size
 func (b *Busy) updateTableSize() {
 	// Calculate table height: total height - process list - box borders
-	processListHeight := len(b.data.Processes) + 1
+	processListHeight := len(b.data.Processes)
 	tableHeight := b.height - processListHeight - 2
 	if tableHeight < 3 {
 		tableHeight = 3
@@ -373,7 +373,7 @@ func (b *Busy) renderJobsBox() string {
 		sep + b.styles.MetricLabel.Render("RSS: ") + b.styles.MetricValue.Render(format.Bytes(totalRSS))
 
 	// Calculate box height (account for process list above)
-	processListHeight := len(b.data.Processes) + 1
+	processListHeight := len(b.data.Processes)
 	boxHeight := b.height - processListHeight
 
 	// Build title based on selected process

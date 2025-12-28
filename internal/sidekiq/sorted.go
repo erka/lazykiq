@@ -14,7 +14,7 @@ const sortedSetScanCount int64 = 100
 // SortedEntry represents a job stored in a Sidekiq sorted set (dead, retry, schedule).
 // It embeds a JobRecord for the job data and adds the sorted set score (timestamp).
 type SortedEntry struct {
-	*JobRecord        // the actual job data (embedded for method promotion)
+	*JobRecord         // the actual job data (embedded for method promotion)
 	Score      float64 // sorted set score (timestamp)
 }
 

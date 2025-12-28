@@ -242,7 +242,7 @@ func (jr *JobRecord) RetriedAt() float64 {
 
 // PositionedEntry wraps a JobRecord with its position in the queue.
 type PositionedEntry struct {
-	*JobRecord       // embedded for method promotion
+	*JobRecord // embedded for method promotion
 	Position   int
 }
 

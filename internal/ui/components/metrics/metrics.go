@@ -34,7 +34,7 @@ type Styles struct {
 func DefaultStyles() Styles {
 	return Styles{
 		Bar:       lipgloss.NewStyle().Padding(0, 1),
-		Label:    lipgloss.NewStyle().Faint(true),
+		Label:     lipgloss.NewStyle().Faint(true),
 		Value:     lipgloss.NewStyle().Bold(true),
 		Separator: lipgloss.NewStyle().Faint(true),
 	}

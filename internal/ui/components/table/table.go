@@ -19,16 +19,16 @@ type Column struct {
 
 // KeyMap defines keybindings for the table.
 type KeyMap struct {
-	LineUp     key.Binding
-	LineDown   key.Binding
-	PageUp     key.Binding
-	PageDown   key.Binding
-	GotoTop    key.Binding
-	GotoBottom key.Binding
-	ScrollLeft key.Binding
+	LineUp      key.Binding
+	LineDown    key.Binding
+	PageUp      key.Binding
+	PageDown    key.Binding
+	GotoTop     key.Binding
+	GotoBottom  key.Binding
+	ScrollLeft  key.Binding
 	ScrollRight key.Binding
-	Home       key.Binding
-	End        key.Binding
+	Home        key.Binding
+	End         key.Binding
 }
 
 // DefaultKeyMap returns a default set of keybindings.
@@ -110,7 +110,7 @@ type Model struct {
 	yOffset        int
 	xOffset        int
 	maxRowWidth    int
-	colWidths      []int  // dynamic column widths (max of defined and actual)
+	colWidths      []int // dynamic column widths (max of defined and actual)
 	emptyMessage   string
 	content        string // pre-rendered body content
 	viewportHeight int
