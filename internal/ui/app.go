@@ -40,10 +40,8 @@ type App struct {
 }
 
 // New creates a new App instance
-func New() App {
+func New(client *sidekiq.Client) App {
 	styles := theme.NewStyles()
-
-	client := sidekiq.NewClient()
 
 	viewList := []views.View{
 		views.NewDashboard(client),

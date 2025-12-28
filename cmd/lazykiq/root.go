@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/fang"
 	"github.com/spf13/cobra"
 
+	"github.com/kpumuk/lazykiq/internal/sidekiq"
 	"github.com/kpumuk/lazykiq/internal/ui"
 )
 
@@ -75,11 +76,30 @@ func init() {
 		"help for lazykiq",
 	)
 
+	rootCmd.Flags().String(
+		"redis",
+		"redis://localhost:6379/0",
+		"redis URL",
+	)
+
 	rootCmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		cpuprofile, err := cmd.Flags().GetString("cpuprofile")
 		if err != nil {
 			return fmt.Errorf("parse cpuprofile flag: %w", err)
 		}
+
+		redisURL, err := cmd.Flags().GetString("redis")
+		if err != nil {
+			return fmt.Errorf("parse redis flag: %w", err)
+		}
+
+		client, err := sidekiq.NewClient(redisURL)
+		if err != nil {
+			return fmt.Errorf("create redis client: %w", err)
+		}
+		defer func() {
+			_ = client.Close()
+		}()
 
 		var profileFile *os.File
 		if cpuprofile != "" {
@@ -98,7 +118,7 @@ func init() {
 			}()
 		}
 
-		app := ui.New()
+		app := ui.New(client)
 		p := tea.NewProgram(app, tea.WithAltScreen())
 		if _, err := p.Run(); err != nil {
 			return fmt.Errorf("run lazykiq: %w", err)

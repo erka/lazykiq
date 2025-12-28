@@ -3,6 +3,7 @@ package sidekiq
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -59,24 +60,27 @@ type Client struct {
 	redis *redis.Client
 }
 
-// NewClient creates a new Sidekiq client with hardcoded Redis connection
-func NewClient() *Client {
-	// Disable connection pool logging by setting MaxRetries to 0
-	// This prevents the pool from retrying and logging errors
-	rdb := redis.NewClient(&redis.Options{
-		Addr:         "localhost:6379",
-		Password:     "",
-		DB:           0,
-		MaxRetries:   -1,              // Disable retries completely
-		DialTimeout:  2 * time.Second, // Short timeout to fail fast
-		ReadTimeout:  2 * time.Second,
-		WriteTimeout: 2 * time.Second,
-		PoolSize:     1, // Minimal pool size
-	})
-
-	return &Client{
-		redis: rdb,
+// NewClient creates a new Sidekiq client configured from a Redis URL.
+func NewClient(redisURL string) (*Client, error) {
+	if redisURL == "" {
+		redisURL = "redis://localhost:6379/0"
 	}
+
+	opts, err := redis.ParseURL(redisURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse redis url: %w", err)
+	}
+
+	// Disable connection pool logging by disabling retries entirely.
+	opts.MaxRetries = -1               // Disable retries completely
+	opts.DialTimeout = 2 * time.Second // Short timeout to fail fast
+	opts.ReadTimeout = 2 * time.Second
+	opts.WriteTimeout = 2 * time.Second
+	opts.PoolSize = 1 // Minimal pool size
+
+	rdb := redis.NewClient(opts)
+
+	return &Client{redis: rdb}, nil
 }
 
 // Close closes the Redis connection

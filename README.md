@@ -29,6 +29,14 @@ go install github.com/kpumuk/lazykiq@latest
 - `/` - filter job list (case-sensitive)
 - `q` - quit
 
+### Redis
+
+Connect to a specific Redis instance with:
+
+```bash
+lazykiq --redis redis://localhost:6379/0
+```
+
 ## Development
 
 We use [`mise`](https://mise.jdx.dev/) for development. Install tooling with:
