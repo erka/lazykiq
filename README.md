@@ -64,3 +64,14 @@ This will:
 * Start a web server to monitor Sidekiq
 
 You can access the Sidekiq dashboard at http://localhost:9292 and connect `lazykiq` to Redis at `localhost:6379`.
+
+## Feedback
+
+I’d love to hear your thoughts on this project. Feel free to drop a note!
+
+- [Twitter](https://twitter.com/kpumuk)
+- [The Fediverse](https://ruby.social/@kpumuk)
+
+## License
+
+[MIT](https://github.com/kpumuk/lazykiq/raw/main/LICENSE).
