@@ -1,3 +1,24 @@
 [tools]
 golang = "1.25.5"
 golangci-lint = "2.7.2"
+
+[tasks.ci]
+description = "Format code and run all CI checks"
+depends = ["format", "lint", "test"]
+
+[tasks.lint]
+description = "Run golangci-lint"
+run = "golangci-lint run"
+
+[tasks.format]
+description = "Format with golangci-lint"
+run = "golangci-lint fmt"
+alias = "fmt"
+
+[tasks.test]
+description = "Run tests"
+run = "go test ./..."
+
+[tasks.deps]
+description = "Update development dependencies"
+run = "go get -u ./... && go mod tidy"
