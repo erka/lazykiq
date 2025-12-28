@@ -2,7 +2,14 @@
 
 <p align="center"><img width="512" src="./doc/assets/lazykiq.png" alt="lazykiq logo" /></p>
 
-A terminal UI for Sidekiq.
+<p align="center">
+  A rich terminal UI for Sidekiq.
+  <br />
+  <br />
+  <a href="https://github.com/kpumuk/lazykiq/releases"><img src="https://img.shields.io/github/release/kpumuk/lazykiq.svg" alt="Latest Release"></a>
+  <a href="https://github.com/kpumuk/lazykiq/actions"><img src="https://github.com/kpumuk/lazykiq/workflows/test/badge.svg" alt="Build Status"></a>
+  <a href="https://github.com/kpumuk/lazykiq/blob/main/LICENSE"><img alt="GitHub License" src="https://img.shields.io/github/license/kpumuk/lazykiq"></a>
+</p>
 
 * View Sidekiq processes and currently running jobs
 * Explore Sidekiq queues and jobs
