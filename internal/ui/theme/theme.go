@@ -2,76 +2,94 @@ package theme
 
 import "github.com/charmbracelet/lipgloss"
 
-// Theme defines all colors used throughout the UI
+// Theme defines all colors used throughout the UI.
 type Theme struct {
-	Name string
-
 	// Base colors
-	Primary   lipgloss.Color
-	Secondary lipgloss.Color
+	Primary   lipgloss.AdaptiveColor
+	Secondary lipgloss.AdaptiveColor
 
 	// Text colors
-	Text       lipgloss.Color
-	TextMuted  lipgloss.Color
-	TextBright lipgloss.Color
+	Text       lipgloss.AdaptiveColor
+	TextMuted  lipgloss.AdaptiveColor
+	TextBright lipgloss.AdaptiveColor
 
 	// Background colors
-	Bg    lipgloss.Color
-	BgAlt lipgloss.Color
+	Bg    lipgloss.AdaptiveColor
+	BgAlt lipgloss.AdaptiveColor
 
 	// Border colors
-	Border      lipgloss.Color
-	BorderFocus lipgloss.Color
+	Border      lipgloss.AdaptiveColor
+	BorderFocus lipgloss.AdaptiveColor
+
+	// Accent colors
+	TableSelectedFg lipgloss.AdaptiveColor
+	TableSelectedBg lipgloss.AdaptiveColor
+	Error           lipgloss.AdaptiveColor
 }
 
-// Dark is the default dark color scheme
-var Dark = Theme{
-	Name: "dark",
-
+// DefaultTheme is the adaptive color scheme used by default.
+var DefaultTheme = Theme{
 	// Sidekiq-inspired primary
-	Primary:   lipgloss.Color("#DC2626"), // Red-600
-	Secondary: lipgloss.Color("#6B7280"), // Gray-500
+	Primary: lipgloss.AdaptiveColor{
+		Light: "#B2003C",
+		Dark:  "#F73D68",
+	},
+	Secondary: lipgloss.AdaptiveColor{
+		Light: "#6B7280", // Gray-500
+		Dark:  "#6B7280", // Gray-500
+	},
 
 	// Text
-	Text:       lipgloss.Color("#F9FAFB"), // Gray-50
-	TextMuted:  lipgloss.Color("#9CA3AF"), // Gray-400
-	TextBright: lipgloss.Color("#FFFFFF"), // White
+	Text: lipgloss.AdaptiveColor{
+		Light: "#111827", // Gray-900
+		Dark:  "#F9FAFB", // Gray-50
+	},
+	TextMuted: lipgloss.AdaptiveColor{
+		Light: "#6B7280", // Gray-500
+		Dark:  "#9CA3AF", // Gray-400
+	},
+	TextBright: lipgloss.AdaptiveColor{
+		Light: "#030712", // Gray-950
+		Dark:  "#FFFFFF", // White
+	},
 
 	// Backgrounds
-	Bg:    lipgloss.Color("#111827"), // Gray-900
-	BgAlt: lipgloss.Color("#1F2937"), // Gray-800
+	Bg: lipgloss.AdaptiveColor{
+		Light: "#FFFFFF", // White
+		Dark:  "#111827", // Gray-900
+	},
+	BgAlt: lipgloss.AdaptiveColor{
+		Light: "#F3F4F6", // Gray-100
+		Dark:  "#1F2937", // Gray-800
+	},
 
 	// Borders
-	Border:      lipgloss.Color("#374151"), // Gray-700
-	BorderFocus: lipgloss.Color("#6B7280"), // Gray-500
-}
+	Border: lipgloss.AdaptiveColor{
+		Light: "#D1D5DB", // Gray-300
+		Dark:  "#374151", // Gray-700
+	},
+	BorderFocus: lipgloss.AdaptiveColor{
+		Light: "#9CA3AF", // Gray-400
+		Dark:  "#6B7280", // Gray-500
+	},
 
-// Light is the light color scheme
-var Light = Theme{
-	Name: "light",
-
-	// Sidekiq-inspired primary
-	Primary:   lipgloss.Color("#DC2626"), // Red-600
-	Secondary: lipgloss.Color("#6B7280"), // Gray-500
-
-	// Text
-	Text:       lipgloss.Color("#111827"), // Gray-900
-	TextMuted:  lipgloss.Color("#6B7280"), // Gray-500
-	TextBright: lipgloss.Color("#030712"), // Gray-950
-
-	// Backgrounds
-	Bg:    lipgloss.Color("#FFFFFF"), // White
-	BgAlt: lipgloss.Color("#F3F4F6"), // Gray-100
-
-	// Borders
-	Border:      lipgloss.Color("#D1D5DB"), // Gray-300
-	BorderFocus: lipgloss.Color("#9CA3AF"), // Gray-400
+	// Accents
+	TableSelectedFg: lipgloss.AdaptiveColor{
+		Light: "229",
+		Dark:  "229",
+	},
+	TableSelectedBg: lipgloss.AdaptiveColor{
+		Light: "57",
+		Dark:  "57",
+	},
+	Error: lipgloss.AdaptiveColor{
+		Light: "#FF0000",
+		Dark:  "#FF0000",
+	},
 }
 
 // Styles holds all lipgloss styles derived from a theme
 type Styles struct {
-	Theme Theme
-
 	// Metrics bar
 	MetricsBar  lipgloss.Style
 	MetricLabel lipgloss.Style
@@ -97,13 +115,16 @@ type Styles struct {
 	// Layout helpers
 	BoxPadding  lipgloss.Style
 	BorderStyle lipgloss.Style
+
+	// Errors
+	ErrorTitle  lipgloss.Style
+	ErrorBorder lipgloss.Style
 }
 
-// NewStyles creates a Styles instance from a Theme
-func NewStyles(t Theme) Styles {
+// NewStyles creates a Styles instance from the default adaptive theme.
+func NewStyles() Styles {
+	t := DefaultTheme
 	return Styles{
-		Theme: t,
-
 		// Metrics bar
 		MetricsBar: lipgloss.NewStyle().
 			Foreground(t.Text).
@@ -153,8 +174,8 @@ func NewStyles(t Theme) Styles {
 			Bold(true),
 
 		TableSelected: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("229")).
-			Background(lipgloss.Color("57")),
+			Foreground(t.TableSelectedFg).
+			Background(t.TableSelectedBg),
 
 		TableSeparator: lipgloss.NewStyle().
 			Foreground(t.Border),
@@ -165,5 +186,12 @@ func NewStyles(t Theme) Styles {
 
 		BorderStyle: lipgloss.NewStyle().
 			Foreground(t.Border),
+
+		ErrorTitle: lipgloss.NewStyle().
+			Foreground(t.Error).
+			Bold(true),
+
+		ErrorBorder: lipgloss.NewStyle().
+			Foreground(t.Error),
 	}
 }

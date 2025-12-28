@@ -35,14 +35,13 @@ type App struct {
 	navbar          navbar.Model
 	errorPopup      errorpopup.Model
 	styles          theme.Styles
-	darkMode        bool
 	sidekiq         *sidekiq.Client
 	connectionError error
 }
 
 // New creates a new App instance
 func New() App {
-	styles := theme.NewStyles(theme.Dark)
+	styles := theme.NewStyles()
 
 	client := sidekiq.NewClient()
 
@@ -60,7 +59,6 @@ func New() App {
 		Text:           styles.ViewText,
 		Muted:          styles.ViewMuted,
 		Title:          styles.ViewTitle,
-		Border:         styles.Theme.Border,
 		MetricLabel:    styles.MetricLabel,
 		MetricValue:    styles.MetricValue,
 		TableHeader:    styles.TableHeader,
@@ -103,14 +101,13 @@ func New() App {
 		),
 		errorPopup: errorpopup.New(
 			errorpopup.WithStyles(errorpopup.Styles{
-				Title:   lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Bold(true),
+				Title:   styles.ErrorTitle,
 				Message: styles.ViewMuted,
-				Border:  lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")),
+				Border:  styles.ErrorBorder,
 			}),
 		),
-		styles:   styles,
-		darkMode: true,
-		sidekiq:  client,
+		styles:  styles,
+		sidekiq: client,
 	}
 }
 
@@ -190,10 +187,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, a.keys.Quit):
 			return a, tea.Quit
-
-		case key.Matches(msg, a.keys.ToggleTheme):
-			a.darkMode = !a.darkMode
-			a.applyTheme()
 
 		case key.Matches(msg, a.keys.View1):
 			a.activeView = 0
@@ -285,54 +278,4 @@ func (a App) View() string {
 		content,
 		a.navbar.View(),
 	)
-}
-
-// applyTheme updates all components with the current theme
-func (a *App) applyTheme() {
-	var t theme.Theme
-	if a.darkMode {
-		t = theme.Dark
-	} else {
-		t = theme.Light
-	}
-
-	a.styles = theme.NewStyles(t)
-
-	// Update components
-	a.metrics.SetStyles(metrics.Styles{
-		Bar:       a.styles.MetricsBar,
-		Label:     a.styles.MetricLabel,
-		Value:     a.styles.MetricValue,
-		Separator: a.styles.MetricSep,
-	})
-	a.navbar.SetStyles(navbar.Styles{
-		Bar:  a.styles.NavBar,
-		Key:  a.styles.NavKey,
-		Item: a.styles.NavItem,
-		Quit: a.styles.NavQuit,
-	})
-	a.errorPopup.SetStyles(errorpopup.Styles{
-		Title:   lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Bold(true),
-		Message: a.styles.ViewMuted,
-		Border:  lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")),
-	})
-
-	// Update views
-	viewStyles := views.Styles{
-		Text:           a.styles.ViewText,
-		Muted:          a.styles.ViewMuted,
-		Title:          a.styles.ViewTitle,
-		Border:         a.styles.Theme.Border,
-		MetricLabel:    a.styles.MetricLabel,
-		MetricValue:    a.styles.MetricValue,
-		TableHeader:    a.styles.TableHeader,
-		TableSelected:  a.styles.TableSelected,
-		TableSeparator: a.styles.TableSeparator,
-		BoxPadding:     a.styles.BoxPadding,
-		BorderStyle:    a.styles.BorderStyle,
-		NavKey:         a.styles.NavKey,
-	}
-	for i := range a.views {
-		a.views[i] = a.views[i].SetStyles(viewStyles)
-	}
 }

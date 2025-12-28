@@ -123,8 +123,5 @@ func (m Model) View() string {
 	// Add quit hint
 	items += m.styles.Key.Render("q") + m.styles.Quit.Render("quit")
 
-	// Add theme toggle hint
-	items += m.styles.Key.Render("t") + m.styles.Quit.Render("theme")
-
 	return barStyle.Render(items)
 }

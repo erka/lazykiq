@@ -33,7 +33,7 @@ func (d *Dashboard) Update(msg tea.Msg) (View, tea.Cmd) {
 // View implements View
 func (d *Dashboard) View() string {
 	content := d.styles.Text.Render("Overview of Sidekiq status will appear here.") + "\n\n" +
-		d.styles.Muted.Render("Press 1-6 to switch views, t to toggle theme")
+		d.styles.Muted.Render("Press 1-6 to switch views")
 
 	return d.renderBorderedBox(d.Name(), content, d.width, d.height)
 }

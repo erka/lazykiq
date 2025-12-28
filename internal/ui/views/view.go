@@ -11,7 +11,6 @@ type Styles struct {
 	Text           lipgloss.Style
 	Muted          lipgloss.Style
 	Title          lipgloss.Style
-	Border         lipgloss.Color
 	MetricLabel    lipgloss.Style
 	MetricValue    lipgloss.Style
 	TableHeader    lipgloss.Style

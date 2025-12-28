@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kpumuk/lazykiq/internal/ui/theme"
 )
 
 // Styles holds the styles needed by the error popup.
@@ -15,7 +16,7 @@ type Styles struct {
 
 // DefaultStyles returns default styles for the error popup.
 func DefaultStyles() Styles {
-	errorColor := lipgloss.Color("#FF0000")
+	errorColor := theme.DefaultTheme.Error
 	return Styles{
 		Title:   lipgloss.NewStyle().Foreground(errorColor).Bold(true),
 		Message: lipgloss.NewStyle().Faint(true),

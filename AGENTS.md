@@ -30,7 +30,8 @@ internal/
 
 - Views implement `views.View` interface
 - Components take `*theme.Styles`, have SetStyles()
-- Theme toggle: `t` key, app.applyTheme() propagates to all
+- Theme uses AdaptiveColor; no runtime toggle
+- All color values must live in `theme.DefaultTheme`; no inline colors outside it
 - Border title: renderBorderedBox() in app.go
 - No backgrounds on metrics/navbar (transparent)
 - NO EMOJIS in UI - keep text clean and professional
