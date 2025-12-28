@@ -14,8 +14,9 @@ type Theme struct {
 	TextBright lipgloss.AdaptiveColor
 
 	// Background colors
-	Bg    lipgloss.AdaptiveColor
-	BgAlt lipgloss.AdaptiveColor
+	Bg           lipgloss.AdaptiveColor
+	BgAlt        lipgloss.AdaptiveColor
+	MetricsBarBg lipgloss.AdaptiveColor
 
 	// Border colors
 	Border      lipgloss.AdaptiveColor
@@ -26,9 +27,14 @@ type Theme struct {
 	TableSelectedBg lipgloss.AdaptiveColor
 	Success         lipgloss.AdaptiveColor
 	Error           lipgloss.AdaptiveColor
+
+	// Metrics colors
+	MetricsText  lipgloss.AdaptiveColor
+	MetricsSepBg lipgloss.AdaptiveColor
 }
 
 // DefaultTheme is the adaptive color scheme used by default.
+// Use Open Color palette when possible to define colors: https://yeun.github.io/open-color/
 var DefaultTheme = Theme{
 	// Sidekiq-inspired primary
 	Primary: lipgloss.AdaptiveColor{
@@ -63,6 +69,10 @@ var DefaultTheme = Theme{
 		Light: "#F3F4F6", // Gray-100
 		Dark:  "#1F2937", // Gray-800
 	},
+	MetricsBarBg: lipgloss.AdaptiveColor{
+		Light: "#1c7ed6", // blue 7
+		Dark:  "#4dabf7", // blue 4
+	},
 
 	// Borders
 	Border: lipgloss.AdaptiveColor{
@@ -91,15 +101,28 @@ var DefaultTheme = Theme{
 		Light: "#FF0000",
 		Dark:  "#FF0000",
 	},
+
+	// Metrics
+	MetricsText: lipgloss.AdaptiveColor{
+		Light: "#f8f9fa",
+		Dark:  "#212529", //gray 9
+	},
+	MetricsSepBg: lipgloss.AdaptiveColor{
+		Light: "#1971c2", // blue 8
+		Dark:  "#339af0", // blue 5
+	},
 }
 
 // Styles holds all lipgloss styles derived from a theme
 type Styles struct {
 	// Metrics bar
-	MetricsBar  lipgloss.Style
-	MetricLabel lipgloss.Style
-	MetricValue lipgloss.Style
-	MetricSep   lipgloss.Style
+	MetricsBar   lipgloss.Style
+	MetricsFill  lipgloss.Style
+	MetricsLabel lipgloss.Style
+	MetricsValue lipgloss.Style
+	MetricsSep   lipgloss.Style
+	MetricLabel  lipgloss.Style
+	MetricValue  lipgloss.Style
 
 	// Navbar
 	NavBar  lipgloss.Style
@@ -137,8 +160,24 @@ func NewStyles() Styles {
 	return Styles{
 		// Metrics bar
 		MetricsBar: lipgloss.NewStyle().
-			Foreground(t.Text).
-			Padding(0, 1),
+			Foreground(t.MetricsText).
+			Background(t.MetricsBarBg).
+			Padding(0, 0),
+
+		MetricsFill: lipgloss.NewStyle().
+			Background(t.MetricsBarBg),
+
+		MetricsLabel: lipgloss.NewStyle().
+			Foreground(t.MetricsText).
+			Background(t.MetricsBarBg),
+
+		MetricsValue: lipgloss.NewStyle().
+			Foreground(t.MetricsText).
+			Background(t.MetricsBarBg).
+			Bold(true),
+
+		MetricsSep: lipgloss.NewStyle().
+			Background(t.MetricsSepBg),
 
 		MetricLabel: lipgloss.NewStyle().
 			Foreground(t.TextMuted),
@@ -146,9 +185,6 @@ func NewStyles() Styles {
 		MetricValue: lipgloss.NewStyle().
 			Foreground(t.Text).
 			Bold(true),
-
-		MetricSep: lipgloss.NewStyle().
-			Foreground(t.Border),
 
 		// Navbar
 		NavBar: lipgloss.NewStyle().
