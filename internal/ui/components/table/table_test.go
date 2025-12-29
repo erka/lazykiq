@@ -6,6 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/ansi/parser"
 )
 
 func blankStyles() Styles {
@@ -54,6 +56,13 @@ func TestApplyHorizontalScroll(t *testing.T) {
 			visibleWidth: 6,
 			want:         "ef    ",
 		},
+		{
+			name:         "WideRuneOffset",
+			line:         "a\u754cb",
+			offset:       1,
+			visibleWidth: 3,
+			want:         "\u754cb",
+		},
 	}
 
 	for _, tc := range tests {
@@ -66,6 +75,21 @@ func TestApplyHorizontalScroll(t *testing.T) {
 	}
 }
 
+func TestApplyHorizontalScroll_ANSIIntegrity(t *testing.T) {
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	line := style.Render("abcdef")
+
+	got := applyHorizontalScroll(line, 2, 3)
+	if len(got) <= 3 {
+		t.Fatalf("expected ANSI codes to be preserved, got %q", got)
+	}
+	if lipgloss.Width(got) != 3 {
+		t.Fatalf("want width 3, got %d", lipgloss.Width(got))
+	}
+
+	assertANSIGrounded(t, got)
+}
+
 func TestRenderBody_EmptyMessage(t *testing.T) {
 	table := New(
 		WithStyles(blankStyles()),
@@ -75,6 +99,18 @@ func TestRenderBody_EmptyMessage(t *testing.T) {
 	got := table.renderBody()
 	if got != "Nothing here" {
 		t.Fatalf("want %q, got %q", "Nothing here", got)
+	}
+}
+
+func assertANSIGrounded(t *testing.T, s string) {
+	t.Helper()
+
+	p := ansi.NewParser()
+	for i := 0; i < len(s); i++ {
+		p.Advance(s[i])
+	}
+	if p.State() != parser.GroundState {
+		t.Fatalf("expected ANSI parser in ground state, got %s", p.StateName())
 	}
 }
 

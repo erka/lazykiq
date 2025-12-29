@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Row represents one line in the table.
@@ -451,13 +452,14 @@ func (m Model) renderHeader() string {
 			totalWidth += col.Width + 1
 		}
 	}
-	if len(header) > totalWidth {
-		totalWidth = len(header)
+	headerWidth := lipgloss.Width(header)
+	if headerWidth > totalWidth {
+		totalWidth = headerWidth
 	}
 
 	// Pad header to match body width
-	if len(header) < totalWidth {
-		header = header + strings.Repeat(" ", totalWidth-len(header))
+	if headerWidth < totalWidth {
+		header = header + strings.Repeat(" ", totalWidth-headerWidth)
 	}
 
 	// Apply horizontal scroll to header
@@ -490,8 +492,9 @@ func (m *Model) renderBody() string {
 	}
 	for _, row := range m.rows {
 		for i, cell := range row {
-			if i < len(m.colWidths) && len(cell) > m.colWidths[i] {
-				m.colWidths[i] = len(cell)
+			cellWidth := lipgloss.Width(cell)
+			if i < len(m.colWidths) && cellWidth > m.colWidths[i] {
+				m.colWidths[i] = cellWidth
 			}
 		}
 	}
@@ -514,8 +517,9 @@ func (m *Model) renderBody() string {
 		rowStr := strings.Join(cols, " ")
 		rawRows = append(rawRows, rowStr)
 
-		if len(rowStr) > maxWidth {
-			maxWidth = len(rowStr)
+		rowWidth := lipgloss.Width(rowStr)
+		if rowWidth > maxWidth {
+			maxWidth = rowWidth
 		}
 	}
 	m.maxRowWidth = maxWidth
@@ -524,8 +528,9 @@ func (m *Model) renderBody() string {
 	lines := make([]string, 0, len(rawRows))
 	for i, row := range rawRows {
 		// Pad row to max width for consistent selection highlight
-		if len(row) < maxWidth {
-			row = row + strings.Repeat(" ", maxWidth-len(row))
+		rowWidth := lipgloss.Width(row)
+		if rowWidth < maxWidth {
+			row = row + strings.Repeat(" ", maxWidth-rowWidth)
 		}
 
 		// Apply horizontal scroll offset (before styling)
@@ -566,19 +571,19 @@ func (m Model) getVisibleContent() string {
 
 // applyHorizontalScroll applies horizontal scroll offset to a plain text line.
 func applyHorizontalScroll(line string, offset, visibleWidth int) string {
-	runes := []rune(line)
-
-	// Apply offset
-	if offset >= len(runes) {
-		return strings.Repeat(" ", visibleWidth)
+	if visibleWidth <= 0 {
+		return ""
 	}
-	runes = runes[offset:]
-
-	// Pad or truncate to visible width
-	if len(runes) < visibleWidth {
-		return string(runes) + strings.Repeat(" ", visibleWidth-len(runes))
+	if offset < 0 {
+		offset = 0
 	}
-	return string(runes[:visibleWidth])
+
+	cut := ansi.Cut(line, offset, offset+visibleWidth)
+	cutWidth := lipgloss.Width(cut)
+	if cutWidth < visibleWidth {
+		cut += strings.Repeat(" ", visibleWidth-cutWidth)
+	}
+	return cut
 }
 
 func (m Model) computeLastColWidth(colWidths []int) int {
@@ -616,10 +621,13 @@ func (m Model) computeLastColWidth(colWidths []int) int {
 
 // padRight pads a string to the specified width (no truncation).
 func padRight(s string, width int) string {
-	if len(s) >= width {
+	if width <= 0 {
 		return s
 	}
-	return s + strings.Repeat(" ", width-len(s))
+	if lipgloss.Width(s) >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-lipgloss.Width(s))
 }
 
 // clamp restricts a value to a range.
