@@ -17,14 +17,14 @@ import (
 	"github.com/kpumuk/lazykiq/internal/ui/format"
 )
 
-// QueueInfo holds pre-fetched queue information for display
+// QueueInfo holds pre-fetched queue information for display.
 type QueueInfo struct {
 	Name    string
 	Size    int64
 	Latency float64
 }
 
-// queuesDataMsg carries queues data internally
+// queuesDataMsg carries queues data internally.
 type queuesDataMsg struct {
 	queues        []*QueueInfo
 	jobs          []*sidekiq.PositionedEntry
@@ -35,7 +35,7 @@ type queuesDataMsg struct {
 
 const queuesPageSize = 25
 
-// Queues shows the list of Sidekiq queues
+// Queues shows the list of Sidekiq queues.
 type Queues struct {
 	client        *sidekiq.Client
 	width         int
@@ -54,7 +54,7 @@ type Queues struct {
 	jobDetail  jobdetail.Model
 }
 
-// NewQueues creates a new Queues view
+// NewQueues creates a new Queues view.
 func NewQueues(client *sidekiq.Client) *Queues {
 	return &Queues{
 		client:        client,
@@ -69,7 +69,7 @@ func NewQueues(client *sidekiq.Client) *Queues {
 	}
 }
 
-// fetchDataCmd fetches queues data from Redis
+// fetchDataCmd fetches queues data from Redis.
 func (q *Queues) fetchDataCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
@@ -126,7 +126,7 @@ func (q *Queues) fetchDataCmd() tea.Cmd {
 	}
 }
 
-// Init implements View
+// Init implements View.
 func (q *Queues) Init() tea.Cmd {
 	q.currentPage = 1
 	q.selectedQueue = 0
@@ -134,7 +134,7 @@ func (q *Queues) Init() tea.Cmd {
 	return q.fetchDataCmd()
 }
 
-// Update implements View
+// Update implements View.
 func (q *Queues) Update(msg tea.Msg) (View, tea.Cmd) {
 	// If showing detail, delegate to detail component
 	if q.showDetail {
@@ -201,7 +201,7 @@ func (q *Queues) Update(msg tea.Msg) (View, tea.Cmd) {
 	return q, nil
 }
 
-// View implements View
+// View implements View.
 func (q *Queues) View() string {
 	if q.showDetail {
 		return q.renderJobDetail()
@@ -218,17 +218,17 @@ func (q *Queues) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, q.renderQueueList(), q.renderJobsBox())
 }
 
-// Name implements View
+// Name implements View.
 func (q *Queues) Name() string {
 	return "Queues"
 }
 
-// ShortHelp implements View
+// ShortHelp implements View.
 func (q *Queues) ShortHelp() []key.Binding {
 	return nil
 }
 
-// SetSize implements View
+// SetSize implements View.
 func (q *Queues) SetSize(width, height int) View {
 	q.width = width
 	q.height = height
@@ -238,7 +238,7 @@ func (q *Queues) SetSize(width, height int) View {
 	return q
 }
 
-// SetStyles implements View
+// SetStyles implements View.
 func (q *Queues) SetStyles(styles Styles) View {
 	q.styles = styles
 	q.table.SetStyles(table.Styles{
@@ -261,7 +261,7 @@ func (q *Queues) SetStyles(styles Styles) View {
 	return q
 }
 
-// renderQueueList renders the compact queue list (outside the border)
+// renderQueueList renders the compact queue list (outside the border).
 func (q *Queues) renderQueueList() string {
 	if len(q.queues) == 0 {
 		return ""
@@ -310,7 +310,7 @@ func (q *Queues) renderQueueList() string {
 	return q.styles.BoxPadding.Render(strings.Join(lines, "\n"))
 }
 
-// formatLatency formats latency in seconds as a readable string
+// formatLatency formats latency in seconds as a readable string.
 func formatLatency(seconds float64) string {
 	if seconds < 1 {
 		return fmt.Sprintf("%.0fms", seconds*1000)
@@ -318,7 +318,7 @@ func formatLatency(seconds float64) string {
 	return format.Duration(int64(seconds))
 }
 
-// Table columns for queue job list
+// Table columns for queue job list.
 var queueJobColumns = []table.Column{
 	{Title: "#", Width: 6},
 	{Title: "Job", Width: 30},
@@ -326,7 +326,7 @@ var queueJobColumns = []table.Column{
 	{Title: "Context", Width: 40},
 }
 
-// updateTableSize updates the table dimensions based on current view size
+// updateTableSize updates the table dimensions based on current view size.
 func (q *Queues) updateTableSize() {
 	// Calculate table height: total height - queue list - box borders
 	queueListHeight := len(q.queues)
@@ -339,7 +339,7 @@ func (q *Queues) updateTableSize() {
 	q.table.SetSize(tableWidth, tableHeight)
 }
 
-// updateTableRows converts job data to table rows
+// updateTableRows converts job data to table rows.
 func (q *Queues) updateTableRows() {
 	rows := make([]table.Row, 0, len(q.jobs))
 	for _, job := range q.jobs {
@@ -355,7 +355,7 @@ func (q *Queues) updateTableRows() {
 	q.updateTableSize()
 }
 
-// formatContext formats the context map as a string
+// formatContext formats the context map as a string.
 func formatContext(ctx map[string]interface{}) string {
 	if len(ctx) == 0 {
 		return ""
@@ -367,7 +367,7 @@ func formatContext(ctx map[string]interface{}) string {
 	return string(b)
 }
 
-// renderJobsBox renders the bordered box containing the jobs table
+// renderJobsBox renders the bordered box containing the jobs table.
 func (q *Queues) renderJobsBox() string {
 	// Build dynamic title with queue name
 	queueName := ""
@@ -420,7 +420,7 @@ func (q *Queues) renderMessage(msg string) string {
 	return header + "\n" + box
 }
 
-// renderJobDetail renders the job detail view
+// renderJobDetail renders the job detail view.
 func (q *Queues) renderJobDetail() string {
 	// Resize to account for missing queue list header area
 	q.jobDetail.SetSize(q.width, q.height-1)

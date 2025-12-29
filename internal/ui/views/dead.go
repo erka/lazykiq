@@ -18,7 +18,7 @@ import (
 
 const deadPageSize = 25
 
-// deadDataMsg carries dead jobs data internally
+// deadDataMsg carries dead jobs data internally.
 type deadDataMsg struct {
 	jobs        []*sidekiq.SortedEntry
 	currentPage int
@@ -26,7 +26,7 @@ type deadDataMsg struct {
 	totalSize   int64
 }
 
-// Dead shows dead/morgue jobs
+// Dead shows dead/morgue jobs.
 type Dead struct {
 	client      *sidekiq.Client
 	width       int
@@ -45,7 +45,7 @@ type Dead struct {
 	jobDetail  jobdetail.Model
 }
 
-// NewDead creates a new Dead view
+// NewDead creates a new Dead view.
 func NewDead(client *sidekiq.Client) *Dead {
 	return &Dead{
 		client:      client,
@@ -60,7 +60,7 @@ func NewDead(client *sidekiq.Client) *Dead {
 	}
 }
 
-// fetchDataCmd fetches dead jobs data from Redis
+// fetchDataCmd fetches dead jobs data from Redis.
 func (d *Dead) fetchDataCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
@@ -108,7 +108,7 @@ func (d *Dead) fetchDataCmd() tea.Cmd {
 	}
 }
 
-// Init implements View
+// Init implements View.
 func (d *Dead) Init() tea.Cmd {
 	d.currentPage = 1
 	d.showDetail = false
@@ -116,7 +116,7 @@ func (d *Dead) Init() tea.Cmd {
 	return d.fetchDataCmd()
 }
 
-// Update implements View
+// Update implements View.
 func (d *Dead) Update(msg tea.Msg) (View, tea.Cmd) {
 	// If showing detail, delegate to detail component
 	if d.showDetail {
@@ -195,7 +195,7 @@ func (d *Dead) Update(msg tea.Msg) (View, tea.Cmd) {
 	return d, nil
 }
 
-// View implements View
+// View implements View.
 func (d *Dead) View() string {
 	if d.showDetail {
 		return d.renderJobDetail()
@@ -220,17 +220,17 @@ func (d *Dead) renderMessage(msg string) string {
 	}, "Dead Jobs", msg, d.width, d.height)
 }
 
-// Name implements View
+// Name implements View.
 func (d *Dead) Name() string {
 	return "Dead"
 }
 
-// ShortHelp implements View
+// ShortHelp implements View.
 func (d *Dead) ShortHelp() []key.Binding {
 	return nil
 }
 
-// SetSize implements View
+// SetSize implements View.
 func (d *Dead) SetSize(width, height int) View {
 	d.width = width
 	d.height = height
@@ -245,7 +245,7 @@ func (d *Dead) FilterFocused() bool {
 	return d.filter.Focused()
 }
 
-// SetStyles implements View
+// SetStyles implements View.
 func (d *Dead) SetStyles(styles Styles) View {
 	d.styles = styles
 	d.table.SetStyles(table.Styles{
@@ -274,7 +274,7 @@ func (d *Dead) SetStyles(styles Styles) View {
 	return d
 }
 
-// Table columns for dead job list
+// Table columns for dead job list.
 var deadJobColumns = []table.Column{
 	{Title: "Last Retry", Width: 12},
 	{Title: "Queue", Width: 15},
@@ -283,7 +283,7 @@ var deadJobColumns = []table.Column{
 	{Title: "Error", Width: 60},
 }
 
-// updateTableSize updates the table dimensions based on current view size
+// updateTableSize updates the table dimensions based on current view size.
 func (d *Dead) updateTableSize() {
 	// Calculate table height: total height - box borders
 	tableHeight := d.height - 3
@@ -296,7 +296,7 @@ func (d *Dead) updateTableSize() {
 	d.filter.SetWidth(tableWidth)
 }
 
-// updateTableRows converts job data to table rows
+// updateTableRows converts job data to table rows.
 func (d *Dead) updateTableRows() {
 	if d.filter.Query() != "" {
 		d.table.SetEmptyMessage("No matches")
@@ -333,7 +333,7 @@ func (d *Dead) updateTableRows() {
 	d.updateTableSize()
 }
 
-// renderJobsBox renders the bordered box containing the jobs table
+// renderJobsBox renders the bordered box containing the jobs table.
 func (d *Dead) renderJobsBox() string {
 	// Build meta: SIZE and PAGE info
 	sep := d.styles.Muted.Render(" • ")
@@ -357,7 +357,7 @@ func (d *Dead) renderJobsBox() string {
 	return box.View()
 }
 
-// renderJobDetail renders the job detail view
+// renderJobDetail renders the job detail view.
 func (d *Dead) renderJobDetail() string {
 	return d.jobDetail.View()
 }

@@ -18,7 +18,7 @@ import (
 
 const scheduledPageSize = 25
 
-// scheduledDataMsg carries scheduled jobs data internally
+// scheduledDataMsg carries scheduled jobs data internally.
 type scheduledDataMsg struct {
 	jobs        []*sidekiq.SortedEntry
 	currentPage int
@@ -26,7 +26,7 @@ type scheduledDataMsg struct {
 	totalSize   int64
 }
 
-// Scheduled shows jobs scheduled for future execution
+// Scheduled shows jobs scheduled for future execution.
 type Scheduled struct {
 	client      *sidekiq.Client
 	width       int
@@ -45,7 +45,7 @@ type Scheduled struct {
 	jobDetail  jobdetail.Model
 }
 
-// NewScheduled creates a new Scheduled view
+// NewScheduled creates a new Scheduled view.
 func NewScheduled(client *sidekiq.Client) *Scheduled {
 	return &Scheduled{
 		client:      client,
@@ -60,7 +60,7 @@ func NewScheduled(client *sidekiq.Client) *Scheduled {
 	}
 }
 
-// fetchDataCmd fetches scheduled jobs data from Redis
+// fetchDataCmd fetches scheduled jobs data from Redis.
 func (s *Scheduled) fetchDataCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
@@ -108,7 +108,7 @@ func (s *Scheduled) fetchDataCmd() tea.Cmd {
 	}
 }
 
-// Init implements View
+// Init implements View.
 func (s *Scheduled) Init() tea.Cmd {
 	s.currentPage = 1
 	s.showDetail = false
@@ -116,7 +116,7 @@ func (s *Scheduled) Init() tea.Cmd {
 	return s.fetchDataCmd()
 }
 
-// Update implements View
+// Update implements View.
 func (s *Scheduled) Update(msg tea.Msg) (View, tea.Cmd) {
 	// If showing detail, delegate to detail component
 	if s.showDetail {
@@ -195,7 +195,7 @@ func (s *Scheduled) Update(msg tea.Msg) (View, tea.Cmd) {
 	return s, nil
 }
 
-// View implements View
+// View implements View.
 func (s *Scheduled) View() string {
 	if s.showDetail {
 		return s.renderJobDetail()
@@ -220,17 +220,17 @@ func (s *Scheduled) renderMessage(msg string) string {
 	}, "Scheduled", msg, s.width, s.height)
 }
 
-// Name implements View
+// Name implements View.
 func (s *Scheduled) Name() string {
 	return "Scheduled"
 }
 
-// ShortHelp implements View
+// ShortHelp implements View.
 func (s *Scheduled) ShortHelp() []key.Binding {
 	return nil
 }
 
-// SetSize implements View
+// SetSize implements View.
 func (s *Scheduled) SetSize(width, height int) View {
 	s.width = width
 	s.height = height
@@ -245,7 +245,7 @@ func (s *Scheduled) FilterFocused() bool {
 	return s.filter.Focused()
 }
 
-// SetStyles implements View
+// SetStyles implements View.
 func (s *Scheduled) SetStyles(styles Styles) View {
 	s.styles = styles
 	s.table.SetStyles(table.Styles{
@@ -274,7 +274,7 @@ func (s *Scheduled) SetStyles(styles Styles) View {
 	return s
 }
 
-// Table columns for scheduled job list
+// Table columns for scheduled job list.
 var scheduledJobColumns = []table.Column{
 	{Title: "When", Width: 12},
 	{Title: "Queue", Width: 15},
@@ -282,7 +282,7 @@ var scheduledJobColumns = []table.Column{
 	{Title: "Arguments", Width: 60},
 }
 
-// updateTableSize updates the table dimensions based on current view size
+// updateTableSize updates the table dimensions based on current view size.
 func (s *Scheduled) updateTableSize() {
 	// Calculate table height: total height - box borders
 	tableHeight := s.height - 3
@@ -295,7 +295,7 @@ func (s *Scheduled) updateTableSize() {
 	s.filter.SetWidth(tableWidth)
 }
 
-// updateTableRows converts job data to table rows
+// updateTableRows converts job data to table rows.
 func (s *Scheduled) updateTableRows() {
 	if s.filter.Query() != "" {
 		s.table.SetEmptyMessage("No matches")
@@ -321,7 +321,7 @@ func (s *Scheduled) updateTableRows() {
 	s.updateTableSize()
 }
 
-// renderJobsBox renders the bordered box containing the jobs table
+// renderJobsBox renders the bordered box containing the jobs table.
 func (s *Scheduled) renderJobsBox() string {
 	// Build meta: SIZE and PAGE info
 	sep := s.styles.Muted.Render(" • ")
@@ -345,7 +345,7 @@ func (s *Scheduled) renderJobsBox() string {
 	return box.View()
 }
 
-// renderJobDetail renders the job detail view
+// renderJobDetail renders the job detail view.
 func (s *Scheduled) renderJobDetail() string {
 	return s.jobDetail.View()
 }

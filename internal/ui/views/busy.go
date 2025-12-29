@@ -17,12 +17,12 @@ import (
 	"github.com/kpumuk/lazykiq/internal/ui/format"
 )
 
-// busyDataMsg carries busy data from the fetch command to the Busy view
+// busyDataMsg carries busy data from the fetch command to the Busy view.
 type busyDataMsg struct {
 	data sidekiq.BusyData
 }
 
-// Busy shows active workers/processes
+// Busy shows active workers/processes.
 type Busy struct {
 	client          *sidekiq.Client
 	width           int
@@ -39,7 +39,7 @@ type Busy struct {
 	jobDetail  jobdetail.Model
 }
 
-// NewBusy creates a new Busy view
+// NewBusy creates a new Busy view.
 func NewBusy(client *sidekiq.Client) *Busy {
 	return &Busy{
 		client:          client,
@@ -52,7 +52,7 @@ func NewBusy(client *sidekiq.Client) *Busy {
 	}
 }
 
-// fetchDataCmd fetches busy data from Redis
+// fetchDataCmd fetches busy data from Redis.
 func (b *Busy) fetchDataCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
@@ -64,13 +64,13 @@ func (b *Busy) fetchDataCmd() tea.Cmd {
 	}
 }
 
-// Init implements View
+// Init implements View.
 func (b *Busy) Init() tea.Cmd {
 	b.showDetail = false
 	return b.fetchDataCmd()
 }
 
-// Update implements View
+// Update implements View.
 func (b *Busy) Update(msg tea.Msg) (View, tea.Cmd) {
 	// If showing detail, delegate to detail component
 	if b.showDetail {
@@ -126,7 +126,7 @@ func (b *Busy) Update(msg tea.Msg) (View, tea.Cmd) {
 	return b, nil
 }
 
-// View implements View
+// View implements View.
 func (b *Busy) View() string {
 	if b.showDetail {
 		return b.renderJobDetail()
@@ -150,17 +150,17 @@ func (b *Busy) View() string {
 	return boxContent
 }
 
-// Name implements View
+// Name implements View.
 func (b *Busy) Name() string {
 	return "Busy"
 }
 
-// ShortHelp implements View
+// ShortHelp implements View.
 func (b *Busy) ShortHelp() []key.Binding {
 	return nil
 }
 
-// SetSize implements View
+// SetSize implements View.
 func (b *Busy) SetSize(width, height int) View {
 	b.width = width
 	b.height = height
@@ -170,7 +170,7 @@ func (b *Busy) SetSize(width, height int) View {
 	return b
 }
 
-// SetStyles implements View
+// SetStyles implements View.
 func (b *Busy) SetStyles(styles Styles) View {
 	b.styles = styles
 	b.table.SetStyles(table.Styles{
@@ -193,7 +193,7 @@ func (b *Busy) SetStyles(styles Styles) View {
 	return b
 }
 
-// renderProcessList renders the process list as a table (outside the border)
+// renderProcessList renders the process list as a table (outside the border).
 func (b *Busy) renderProcessList() string {
 	if len(b.data.Processes) == 0 {
 		return ""
@@ -278,7 +278,7 @@ func (b *Busy) renderProcessList() string {
 	return b.styles.BoxPadding.Render(strings.Join(lines, "\n"))
 }
 
-// Table columns for job list
+// Table columns for job list.
 var jobColumns = []table.Column{
 	{Title: "Process", Width: 18},
 	{Title: "TID", Width: 6},
@@ -289,7 +289,7 @@ var jobColumns = []table.Column{
 	{Title: "Args", Width: 60},
 }
 
-// updateTableSize updates the table dimensions based on current view size
+// updateTableSize updates the table dimensions based on current view size.
 func (b *Busy) updateTableSize() {
 	// Calculate table height: total height - process list - box borders
 	processListHeight := len(b.data.Processes)
@@ -302,7 +302,7 @@ func (b *Busy) updateTableSize() {
 	b.table.SetSize(tableWidth, tableHeight)
 }
 
-// updateTableRows converts job data to table rows
+// updateTableRows converts job data to table rows.
 func (b *Busy) updateTableRows() {
 	// Get the selected process identity for filtering
 	var selectedIdentity string
@@ -342,7 +342,7 @@ func (b *Busy) updateTableRows() {
 	b.updateTableSize()
 }
 
-// renderJobsBox renders the bordered box containing the jobs table
+// renderJobsBox renders the bordered box containing the jobs table.
 func (b *Busy) renderJobsBox() string {
 	// Calculate stats for meta
 	processCount := len(b.data.Processes)
@@ -410,7 +410,7 @@ func (b *Busy) renderMessage(msg string) string {
 	return header + "\n" + box
 }
 
-// renderJobDetail renders the job detail view
+// renderJobDetail renders the job detail view.
 func (b *Busy) renderJobDetail() string {
 	// Resize to account for missing process list header area
 	b.jobDetail.SetSize(b.width, b.height-1)

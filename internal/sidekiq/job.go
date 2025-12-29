@@ -11,7 +11,7 @@ import (
 )
 
 // JobRecord represents a pending job within a Sidekiq queue.
-// Mirrors Sidekiq::JobRecord
+// Mirrors Sidekiq::JobRecord.
 type JobRecord struct {
 	value string                 // the underlying String in Redis
 	item  map[string]interface{} // the parsed job data

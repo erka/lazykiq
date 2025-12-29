@@ -25,7 +25,7 @@ func (c *Client) NewQueue(name string) *Queue {
 }
 
 // GetQueues fetches all known queues from Redis, sorted alphabetically.
-// Mirrors Sidekiq::Queue.all
+// Mirrors Sidekiq::Queue.all.
 func (c *Client) GetQueues(ctx context.Context) ([]*Queue, error) {
 	names, err := c.redis.SMembers(ctx, "queues").Result()
 	if err != nil && err != redis.Nil {
@@ -55,7 +55,7 @@ func (q *Queue) Size(ctx context.Context) (int64, error) {
 
 // Latency calculates the queue's latency - the difference in seconds
 // since the oldest job in the queue was enqueued.
-// Mirrors Sidekiq::Queue#latency
+// Mirrors Sidekiq::Queue#latency.
 func (q *Queue) Latency(ctx context.Context) (float64, error) {
 	entry, err := q.client.redis.LIndex(ctx, "queue:"+q.name, -1).Result()
 	if err == redis.Nil || entry == "" {

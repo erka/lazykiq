@@ -1,7 +1,9 @@
 package theme
 
-import "charm.land/lipgloss/v2"
-import "charm.land/lipgloss/v2/compat"
+import (
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
+)
 
 // Theme defines all colors used throughout the UI.
 type Theme struct {
@@ -93,7 +95,7 @@ var DefaultTheme = Theme{
 	},
 }
 
-// Styles holds all lipgloss styles derived from a theme
+// Styles holds all lipgloss styles derived from a theme.
 type Styles struct {
 	// Metrics bar
 	MetricsBar   lipgloss.Style

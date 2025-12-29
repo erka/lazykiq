@@ -17,7 +17,7 @@ func init() {
 	redis.SetLogger(&logging.VoidLogger{})
 }
 
-// Stats holds Sidekiq statistics
+// Stats holds Sidekiq statistics.
 type Stats struct {
 	Processed int64
 	Failed    int64
@@ -28,7 +28,7 @@ type Stats struct {
 	Dead      int64
 }
 
-// Process represents a Sidekiq worker process
+// Process represents a Sidekiq worker process.
 type Process struct {
 	Identity    string   // hostname:pid:nonce (e.g., "be4860dbdb68:14:96908d62200c")
 	Hostname    string   // Parsed from identity (e.g., "be4860dbdb68")
@@ -41,7 +41,7 @@ type Process struct {
 	StartedAt   int64    // From info.started_at (Unix timestamp)
 }
 
-// Job represents an active Sidekiq job (currently running)
+// Job represents an active Sidekiq job (currently running).
 type Job struct {
 	*JobRecord             // embedded job data from payload
 	ProcessIdentity string // process identity running this job
@@ -49,13 +49,13 @@ type Job struct {
 	RunAt           int64  // Unix timestamp when job started
 }
 
-// BusyData holds process and job information
+// BusyData holds process and job information.
 type BusyData struct {
 	Processes []Process
 	Jobs      []Job
 }
 
-// Client is a Sidekiq API client
+// Client is a Sidekiq API client.
 type Client struct {
 	redis *redis.Client
 }
@@ -83,12 +83,12 @@ func NewClient(redisURL string) (*Client, error) {
 	return &Client{redis: rdb}, nil
 }
 
-// Close closes the Redis connection
+// Close closes the Redis connection.
 func (c *Client) Close() error {
 	return c.redis.Close()
 }
 
-// GetStats fetches current Sidekiq statistics from Redis
+// GetStats fetches current Sidekiq statistics from Redis.
 func (c *Client) GetStats(ctx context.Context) (Stats, error) {
 	stats := Stats{}
 
@@ -167,7 +167,7 @@ func (c *Client) GetStats(ctx context.Context) (Stats, error) {
 	return stats, nil
 }
 
-// GetBusyData fetches detailed process and active job information from Redis
+// GetBusyData fetches detailed process and active job information from Redis.
 func (c *Client) GetBusyData(ctx context.Context) (BusyData, error) {
 	var data BusyData
 

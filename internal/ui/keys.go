@@ -2,7 +2,7 @@ package ui
 
 import "charm.land/bubbles/v2/key"
 
-// KeyMap defines all global keybindings
+// KeyMap defines all global keybindings.
 type KeyMap struct {
 	Quit     key.Binding
 	View1    key.Binding
@@ -16,7 +16,7 @@ type KeyMap struct {
 	Help     key.Binding
 }
 
-// DefaultKeyMap returns the default keybindings
+// DefaultKeyMap returns the default keybindings.
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
 		Quit: key.NewBinding(
@@ -62,12 +62,12 @@ func DefaultKeyMap() KeyMap {
 	}
 }
 
-// ShortHelp returns keybindings to show in the mini help view
+// ShortHelp returns keybindings to show in the mini help view.
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.View1, k.View2, k.View3, k.View4, k.View5, k.View6, k.Quit}
 }
 
-// FullHelp returns keybindings for the expanded help view
+// FullHelp returns keybindings for the expanded help view.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.View1, k.View2, k.View3, k.View4, k.View5, k.View6},

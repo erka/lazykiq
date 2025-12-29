@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Duration formats elapsed seconds as "2m3s", "1h30m", etc. (max 2 segments)
+// Duration formats elapsed seconds as "2m3s", "1h30m", etc. (max 2 segments).
 func Duration(seconds int64) string {
 	if seconds < 0 {
 		seconds = 0
@@ -45,7 +45,7 @@ func Bytes(bytes int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
-// Args formats job arguments as JSON without outer brackets
+// Args formats job arguments as JSON without outer brackets.
 func Args(args []interface{}) string {
 	if len(args) == 0 {
 		return ""
@@ -64,7 +64,7 @@ func Args(args []interface{}) string {
 	return strings.Join(parts, ", ")
 }
 
-// Number formats a number with K/M suffixes for readability
+// Number formats a number with K/M suffixes for readability.
 func Number(n int64) string {
 	switch {
 	case n >= 1_000_000_000:

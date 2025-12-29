@@ -15,15 +15,15 @@ import (
 	"github.com/kpumuk/lazykiq/internal/ui/views"
 )
 
-// tickMsg is sent every 5 seconds to trigger a metrics update
+// tickMsg is sent every 5 seconds to trigger a metrics update.
 type tickMsg time.Time
 
-// connectionErrorMsg indicates a Redis connection error occurred
+// connectionErrorMsg indicates a Redis connection error occurred.
 type connectionErrorMsg struct {
 	err error
 }
 
-// App is the main application model
+// App is the main application model.
 type App struct {
 	keys            KeyMap
 	width           int
@@ -39,7 +39,7 @@ type App struct {
 	connectionError error
 }
 
-// New creates a new App instance
+// New creates a new App instance.
 func New(client *sidekiq.Client) App {
 	styles := theme.NewStyles()
 
@@ -112,7 +112,7 @@ func New(client *sidekiq.Client) App {
 	}
 }
 
-// Init implements tea.Model
+// Init implements tea.Model.
 func (a App) Init() tea.Cmd {
 	return tea.Batch(
 		a.views[a.activeView].Init(),
@@ -122,14 +122,14 @@ func (a App) Init() tea.Cmd {
 	)
 }
 
-// tickCmd returns a command that sends a tick message after 5 seconds
+// tickCmd returns a command that sends a tick message after 5 seconds.
 func tickCmd() tea.Cmd {
 	return tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
 
-// fetchStatsCmd fetches Sidekiq stats and returns a metrics.UpdateMsg or connectionErrorMsg
+// fetchStatsCmd fetches Sidekiq stats and returns a metrics.UpdateMsg or connectionErrorMsg.
 func (a App) fetchStatsCmd() tea.Msg {
 	ctx := context.Background()
 	stats, err := a.sidekiq.GetStats(ctx)
@@ -151,7 +151,7 @@ func (a App) fetchStatsCmd() tea.Msg {
 	}
 }
 
-// Update implements tea.Model
+// Update implements tea.Model.
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -257,7 +257,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, tea.Batch(cmds...)
 }
 
-// View implements tea.Model
+// View implements tea.Model.
 func (a App) View() tea.View {
 	var v tea.View
 	v.AltScreen = true

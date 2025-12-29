@@ -6,7 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// Styles holds the view-related styles from the theme
+// Styles holds the view-related styles from the theme.
 type Styles struct {
 	Text           lipgloss.Style
 	Muted          lipgloss.Style
@@ -34,7 +34,7 @@ type ConnectionErrorMsg struct {
 	Err error
 }
 
-// View defines the interface that all views must implement
+// View defines the interface that all views must implement.
 type View interface {
 	// Init returns an initial command for the view
 	Init() tea.Cmd

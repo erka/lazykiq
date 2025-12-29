@@ -16,7 +16,7 @@ import (
 	"github.com/kpumuk/lazykiq/internal/ui/format"
 )
 
-// retriesDataMsg is internal to the Retries view
+// retriesDataMsg is internal to the Retries view.
 type retriesDataMsg struct {
 	jobs        []*sidekiq.SortedEntry
 	currentPage int
@@ -26,7 +26,7 @@ type retriesDataMsg struct {
 
 const retriesPageSize = 25
 
-// Retries shows failed jobs pending retry
+// Retries shows failed jobs pending retry.
 type Retries struct {
 	client      *sidekiq.Client
 	width       int
@@ -45,7 +45,7 @@ type Retries struct {
 	jobDetail  jobdetail.Model
 }
 
-// NewRetries creates a new Retries view
+// NewRetries creates a new Retries view.
 func NewRetries(client *sidekiq.Client) *Retries {
 	return &Retries{
 		client:      client,
@@ -60,7 +60,7 @@ func NewRetries(client *sidekiq.Client) *Retries {
 	}
 }
 
-// fetchDataCmd fetches retry jobs data from Redis
+// fetchDataCmd fetches retry jobs data from Redis.
 func (r *Retries) fetchDataCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
@@ -108,7 +108,7 @@ func (r *Retries) fetchDataCmd() tea.Cmd {
 	}
 }
 
-// Init implements View
+// Init implements View.
 func (r *Retries) Init() tea.Cmd {
 	r.currentPage = 1
 	r.showDetail = false
@@ -116,7 +116,7 @@ func (r *Retries) Init() tea.Cmd {
 	return r.fetchDataCmd()
 }
 
-// Update implements View
+// Update implements View.
 func (r *Retries) Update(msg tea.Msg) (View, tea.Cmd) {
 	// If showing detail, delegate to detail component
 	if r.showDetail {
@@ -196,7 +196,7 @@ func (r *Retries) Update(msg tea.Msg) (View, tea.Cmd) {
 	return r, nil
 }
 
-// View implements View
+// View implements View.
 func (r *Retries) View() string {
 	if r.showDetail {
 		return r.renderJobDetail()
@@ -221,17 +221,17 @@ func (r *Retries) renderMessage(msg string) string {
 	}, "Retries", msg, r.width, r.height)
 }
 
-// Name implements View
+// Name implements View.
 func (r *Retries) Name() string {
 	return "Retries"
 }
 
-// ShortHelp implements View
+// ShortHelp implements View.
 func (r *Retries) ShortHelp() []key.Binding {
 	return nil
 }
 
-// SetSize implements View
+// SetSize implements View.
 func (r *Retries) SetSize(width, height int) View {
 	r.width = width
 	r.height = height
@@ -246,7 +246,7 @@ func (r *Retries) FilterFocused() bool {
 	return r.filter.Focused()
 }
 
-// SetStyles implements View
+// SetStyles implements View.
 func (r *Retries) SetStyles(styles Styles) View {
 	r.styles = styles
 	r.table.SetStyles(table.Styles{
@@ -275,7 +275,7 @@ func (r *Retries) SetStyles(styles Styles) View {
 	return r
 }
 
-// Table columns for retry job list
+// Table columns for retry job list.
 var retryJobColumns = []table.Column{
 	{Title: "Next Retry", Width: 12},
 	{Title: "Retries", Width: 7},
@@ -285,7 +285,7 @@ var retryJobColumns = []table.Column{
 	{Title: "Error", Width: 60},
 }
 
-// updateTableSize updates the table dimensions based on current view size
+// updateTableSize updates the table dimensions based on current view size.
 func (r *Retries) updateTableSize() {
 	// Calculate table height: total height - box borders
 	tableHeight := r.height - 3
@@ -298,7 +298,7 @@ func (r *Retries) updateTableSize() {
 	r.filter.SetWidth(tableWidth)
 }
 
-// updateTableRows converts job data to table rows
+// updateTableRows converts job data to table rows.
 func (r *Retries) updateTableRows() {
 	if r.filter.Query() != "" {
 		r.table.SetEmptyMessage("No matches")
@@ -339,7 +339,7 @@ func (r *Retries) updateTableRows() {
 	r.updateTableSize()
 }
 
-// renderJobsBox renders the bordered box containing the jobs table
+// renderJobsBox renders the bordered box containing the jobs table.
 func (r *Retries) renderJobsBox() string {
 	// Build meta: SIZE and PAGE info
 	sep := r.styles.Muted.Render(" • ")
@@ -363,7 +363,7 @@ func (r *Retries) renderJobsBox() string {
 	return box.View()
 }
 
-// renderJobDetail renders the job detail view
+// renderJobDetail renders the job detail view.
 func (r *Retries) renderJobDetail() string {
 	return r.jobDetail.View()
 }

@@ -35,7 +35,7 @@ type dashboardTickMsg struct {
 	id int
 }
 
-// Dashboard is the main overview view
+// Dashboard is the main overview view.
 type Dashboard struct {
 	client *sidekiq.Client
 	width  int
@@ -67,7 +67,7 @@ type Dashboard struct {
 	redisInfo sidekiq.RedisInfo
 }
 
-// NewDashboard creates a new Dashboard view
+// NewDashboard creates a new Dashboard view.
 func NewDashboard(client *sidekiq.Client) *Dashboard {
 	return &Dashboard{
 		client:           client,
@@ -78,7 +78,7 @@ func NewDashboard(client *sidekiq.Client) *Dashboard {
 	}
 }
 
-// Init implements View
+// Init implements View.
 func (d *Dashboard) Init() tea.Cmd {
 	d.tickID++
 	return tea.Batch(
@@ -88,7 +88,7 @@ func (d *Dashboard) Init() tea.Cmd {
 	)
 }
 
-// Update implements View
+// Update implements View.
 func (d *Dashboard) Update(msg tea.Msg) (View, tea.Cmd) {
 	switch msg := msg.(type) {
 	case dashboardTickMsg:
@@ -192,7 +192,7 @@ func (d *Dashboard) adjustFocusedPane(delta int) (View, tea.Cmd) {
 	return d, nil
 }
 
-// View implements View
+// View implements View.
 func (d *Dashboard) View() string {
 	if d.width <= 0 || d.height <= 0 {
 		return ""
@@ -213,17 +213,17 @@ func (d *Dashboard) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, redisLine, realtimeBox, historyBox)
 }
 
-// Name implements View
+// Name implements View.
 func (d *Dashboard) Name() string {
 	return "Dashboard"
 }
 
-// ShortHelp implements View
+// ShortHelp implements View.
 func (d *Dashboard) ShortHelp() []key.Binding {
 	return nil
 }
 
-// SetSize implements View
+// SetSize implements View.
 func (d *Dashboard) SetSize(width, height int) View {
 	d.width = width
 	d.height = height
@@ -232,7 +232,7 @@ func (d *Dashboard) SetSize(width, height int) View {
 	return d
 }
 
-// SetStyles implements View
+// SetStyles implements View.
 func (d *Dashboard) SetStyles(styles Styles) View {
 	d.styles = styles
 	return d
