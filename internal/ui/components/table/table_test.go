@@ -635,7 +635,7 @@ func TestView_LastColumnVariableWidthSnapshot(t *testing.T) {
 		WithHeight(3),
 	)
 
-	separator := strings.Repeat("\u2500", 16) + strings.Repeat(" ", 4)
+	separator := strings.Repeat("\u2500", 20)
 	want := strings.Join([]string{
 		"A   B               ",
 		separator,
@@ -694,7 +694,7 @@ func TestView_SetColumnsSnapshot(t *testing.T) {
 	})
 	table.SetRows([]Row{{"1", "Bob"}})
 
-	separator := strings.Repeat("\u2500", 6) + "  "
+	separator := strings.Repeat("\u2500", 8)
 	want := strings.Join([]string{
 		"ID Name ",
 		separator,

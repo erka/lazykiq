@@ -111,6 +111,7 @@ type Model struct {
 	xOffset        int
 	maxRowWidth    int
 	colWidths      []int // dynamic column widths (max of defined and actual)
+	lastColWidth   int
 	emptyMessage   string
 	content        string // pre-rendered body content
 	viewportHeight int
@@ -444,8 +445,12 @@ func (m Model) renderHeader() string {
 		if i < lastCol {
 			cols = append(cols, padRight(col.Title, width))
 		} else {
-			// Last column: no width constraint
-			cols = append(cols, col.Title)
+			// Last column: stretch to fill available width when shorter
+			lastWidth := width
+			if m.lastColWidth > 0 {
+				lastWidth = m.lastColWidth
+			}
+			cols = append(cols, padRight(col.Title, lastWidth))
 		}
 	}
 	header := strings.Join(cols, " ")
@@ -456,6 +461,9 @@ func (m Model) renderHeader() string {
 		for _, col := range m.columns {
 			totalWidth += col.Width + 1
 		}
+	}
+	if len(header) > totalWidth {
+		totalWidth = len(header)
 	}
 
 	// Pad header to match body width
@@ -479,13 +487,17 @@ func (m *Model) renderBody() string {
 	if len(m.rows) == 0 {
 		m.maxRowWidth = 0
 		m.colWidths = nil
+		m.lastColWidth = m.computeLastColWidth(nil)
 		return m.styles.Muted.Render(m.emptyMessage)
 	}
 
 	// First pass: find max width for each column (at least the defined width)
 	m.colWidths = make([]int, len(m.columns))
+	lastCol := len(m.columns) - 1
 	for i, col := range m.columns {
-		m.colWidths[i] = col.Width
+		if i < lastCol {
+			m.colWidths[i] = col.Width
+		}
 	}
 	for _, row := range m.rows {
 		for i, cell := range row {
@@ -495,18 +507,19 @@ func (m *Model) renderBody() string {
 		}
 	}
 
+	m.lastColWidth = m.computeLastColWidth(m.colWidths)
+
 	// Second pass: build all rows using actual column widths (no truncation)
 	var rawRows []string
 	maxWidth := 0
-	lastCol := len(m.columns) - 1
 	for _, row := range m.rows {
 		var cols []string
 		for i, cell := range row {
 			if i < lastCol {
 				cols = append(cols, padRight(cell, m.colWidths[i]))
 			} else {
-				// Last column: no padding (variable width)
-				cols = append(cols, cell)
+				// Last column: stretch to fill remaining width when needed
+				cols = append(cols, padRight(cell, m.lastColWidth))
 			}
 		}
 		rowStr := strings.Join(cols, " ")
@@ -586,6 +599,39 @@ func applyHorizontalScroll(line string, offset, visibleWidth int) string {
 		return string(runes) + strings.Repeat(" ", visibleWidth-len(runes))
 	}
 	return string(runes[:visibleWidth])
+}
+
+func (m Model) computeLastColWidth(colWidths []int) int {
+	if len(m.columns) == 0 {
+		return 0
+	}
+
+	lastCol := len(m.columns) - 1
+	lastWidth := 0
+	if colWidths != nil && lastCol < len(colWidths) {
+		lastWidth = colWidths[lastCol]
+	}
+
+	fixedWidth := 0
+	for i := 0; i < lastCol; i++ {
+		width := m.columns[i].Width
+		if colWidths != nil && i < len(colWidths) {
+			width = colWidths[i]
+		}
+		fixedWidth += width
+	}
+	if len(m.columns) > 1 {
+		fixedWidth += lastCol // spaces between columns
+	}
+
+	if m.width > 0 {
+		remaining := m.width - fixedWidth
+		if remaining > lastWidth {
+			lastWidth = remaining
+		}
+	}
+
+	return lastWidth
 }
 
 // padRight pads a string to the specified width (no truncation).
