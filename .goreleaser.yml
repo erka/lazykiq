@@ -41,7 +41,7 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
     format_overrides:
       - goos: windows
-        formats: [ zip ]
+        formats: [zip]
 checksum:
   name_template: "checksums.txt"
 snapshot:
@@ -53,6 +53,7 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+      - "^lint:"
       - "^chore"
       - "merge conflict"
       - Merge pull request
