@@ -146,18 +146,18 @@ func (m Model) View() string {
 		middlePad = 0
 	}
 
-	hBar := m.styles.Border.Render(string(border.Top))
-	topBorder := m.styles.Border.Render(string(border.TopLeft)) +
+	hBar := m.styles.Border.Render(border.Top)
+	topBorder := m.styles.Border.Render(border.TopLeft) +
 		hBar +
 		titleLeft +
 		strings.Repeat(hBar, middlePad) +
 		titleRight +
 		hBar +
-		m.styles.Border.Render(string(border.TopRight))
+		m.styles.Border.Render(border.TopRight)
 
 	// Side borders
-	vBar := m.styles.Border.Render(string(border.Left))
-	vBarRight := m.styles.Border.Render(string(border.Right))
+	vBar := m.styles.Border.Render(border.Left)
+	vBarRight := m.styles.Border.Render(border.Right)
 
 	// Split content into lines
 	lines := strings.Split(m.content, "\n")
@@ -182,9 +182,9 @@ func (m Model) View() string {
 	}
 
 	// Bottom border
-	bottomBorder := m.styles.Border.Render(string(border.BottomLeft)) +
+	bottomBorder := m.styles.Border.Render(border.BottomLeft) +
 		strings.Repeat(hBar, innerWidth) +
-		m.styles.Border.Render(string(border.BottomRight))
+		m.styles.Border.Render(border.BottomRight)
 
 	return topBorder + "\n" + strings.Join(middleLines, "\n") + "\n" + bottomBorder
 }

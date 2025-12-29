@@ -504,7 +504,7 @@ func (m Model) renderLeftPanel() string {
 	titleWidth := lipgloss.Width(title)
 
 	// Build borders
-	hBar := borderStyle.Render(string(border.Top))
+	hBar := borderStyle.Render(border.Top)
 	innerWidth := m.leftWidth - 2 // minus left and right border
 
 	// Top border with title
@@ -512,11 +512,11 @@ func (m Model) renderLeftPanel() string {
 	if titlePad < 0 {
 		titlePad = 0
 	}
-	topBorder := borderStyle.Render(string(border.TopLeft)) +
+	topBorder := borderStyle.Render(border.TopLeft) +
 		hBar +
 		m.styles.PanelTitle.Render(title) +
 		strings.Repeat(hBar, titlePad) +
-		borderStyle.Render(string(border.TopRight))
+		borderStyle.Render(border.TopRight)
 
 	// Calculate available width for values (with 2-space indent)
 	valueIndent := "  "
@@ -557,8 +557,8 @@ func (m Model) renderLeftPanel() string {
 	}
 
 	// Add borders to content
-	vBar := borderStyle.Render(string(border.Left))
-	vBarRight := borderStyle.Render(string(border.Right))
+	vBar := borderStyle.Render(border.Left)
+	vBarRight := borderStyle.Render(border.Right)
 	var middleLines []string
 	for _, line := range contentLines {
 		lineWidth := lipgloss.Width(line)
@@ -570,9 +570,9 @@ func (m Model) renderLeftPanel() string {
 	}
 
 	// Bottom border
-	bottomBorder := borderStyle.Render(string(border.BottomLeft)) +
+	bottomBorder := borderStyle.Render(border.BottomLeft) +
 		strings.Repeat(hBar, innerWidth) +
-		borderStyle.Render(string(border.BottomRight))
+		borderStyle.Render(border.BottomRight)
 
 	return topBorder + "\n" + strings.Join(middleLines, "\n") + "\n" + bottomBorder
 }
@@ -594,7 +594,7 @@ func (m Model) renderRightPanel() string {
 	hintWidth := lipgloss.Width(hint)
 
 	// Build borders
-	hBar := borderStyle.Render(string(border.Top))
+	hBar := borderStyle.Render(border.Top)
 	innerWidth := m.rightWidth - 2 // minus left and right border
 
 	// Top border with title on left and hint on right
@@ -602,13 +602,13 @@ func (m Model) renderRightPanel() string {
 	if middlePad < 0 {
 		middlePad = 0
 	}
-	topBorder := borderStyle.Render(string(border.TopLeft)) +
+	topBorder := borderStyle.Render(border.TopLeft) +
 		hBar +
 		m.styles.PanelTitle.Render(title) +
 		strings.Repeat(hBar, middlePad) +
 		m.styles.Muted.Render(hint) +
 		hBar +
-		borderStyle.Render(string(border.TopRight))
+		borderStyle.Render(border.TopRight)
 
 	// Content lines with horizontal scroll
 	var contentLines []string
@@ -633,8 +633,8 @@ func (m Model) renderRightPanel() string {
 	}
 
 	// Add borders to content
-	vBar := borderStyle.Render(string(border.Left))
-	vBarRight := borderStyle.Render(string(border.Right))
+	vBar := borderStyle.Render(border.Left)
+	vBarRight := borderStyle.Render(border.Right)
 	var middleLines []string
 	for _, line := range contentLines {
 		lineWidth := lipgloss.Width(line)
@@ -646,9 +646,9 @@ func (m Model) renderRightPanel() string {
 	}
 
 	// Bottom border
-	bottomBorder := borderStyle.Render(string(border.BottomLeft)) +
+	bottomBorder := borderStyle.Render(border.BottomLeft) +
 		strings.Repeat(hBar, innerWidth) +
-		borderStyle.Render(string(border.BottomRight))
+		borderStyle.Render(border.BottomRight)
 
 	return topBorder + "\n" + strings.Join(middleLines, "\n") + "\n" + bottomBorder
 }

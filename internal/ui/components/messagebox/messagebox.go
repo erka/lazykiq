@@ -139,16 +139,16 @@ func (m Model) View() string {
 		rightPad = 0
 	}
 
-	hBar := m.styles.Border.Render(string(border.Top))
-	topBorder := m.styles.Border.Render(string(border.TopLeft)) +
+	hBar := m.styles.Border.Render(border.Top)
+	topBorder := m.styles.Border.Render(border.TopLeft) +
 		strings.Repeat(hBar, leftPad) +
 		styledTitle +
 		strings.Repeat(hBar, rightPad) +
-		m.styles.Border.Render(string(border.TopRight))
+		m.styles.Border.Render(border.TopRight)
 
 	// Content with side borders - centered message
-	vBar := m.styles.Border.Render(string(border.Left))
-	vBarRight := m.styles.Border.Render(string(border.Right))
+	vBar := m.styles.Border.Render(border.Left)
+	vBarRight := m.styles.Border.Render(border.Right)
 
 	contentHeight := height - 2 // minus top and bottom borders
 	var middleLines []string
@@ -178,9 +178,9 @@ func (m Model) View() string {
 	}
 
 	// Bottom border
-	bottomBorder := m.styles.Border.Render(string(border.BottomLeft)) +
+	bottomBorder := m.styles.Border.Render(border.BottomLeft) +
 		strings.Repeat(hBar, innerWidth) +
-		m.styles.Border.Render(string(border.BottomRight))
+		m.styles.Border.Render(border.BottomRight)
 
 	return topBorder + "\n" + strings.Join(middleLines, "\n") + "\n" + bottomBorder
 }
