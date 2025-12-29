@@ -293,10 +293,7 @@ var jobColumns = []table.Column{
 func (b *Busy) updateTableSize() {
 	// Calculate table height: total height - process list - box borders
 	processListHeight := len(b.data.Processes)
-	tableHeight := b.height - processListHeight - 2
-	if tableHeight < 3 {
-		tableHeight = 3
-	}
+	tableHeight := max(b.height-processListHeight-2, 3)
 	// Table width: view width - box borders - padding
 	tableWidth := b.width - 4
 	b.table.SetSize(tableWidth, tableHeight)

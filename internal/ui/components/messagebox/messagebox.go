@@ -121,10 +121,7 @@ func (m Model) Message() string {
 
 // View renders the message box.
 func (m Model) View() string {
-	height := m.height
-	if height < 5 {
-		height = 5
-	}
+	height := max(m.height, 5)
 
 	border := lipgloss.RoundedBorder()
 
@@ -134,10 +131,7 @@ func (m Model) View() string {
 	titleWidth := lipgloss.Width(styledTitle)
 	innerWidth := m.width - 2
 	leftPad := 1
-	rightPad := innerWidth - titleWidth - leftPad
-	if rightPad < 0 {
-		rightPad = 0
-	}
+	rightPad := max(innerWidth-titleWidth-leftPad, 0)
 
 	hBar := m.styles.Border.Render(border.Top)
 	topBorder := m.styles.Border.Render(border.TopLeft) +
@@ -158,18 +152,12 @@ func (m Model) View() string {
 	msgWidth := lipgloss.Width(msgText)
 	centerRow := contentHeight / 2
 
-	for i := 0; i < contentHeight; i++ {
+	for i := range contentHeight {
 		var line string
 		if i == centerRow {
 			// Center horizontally
-			leftPadding := (innerWidth - msgWidth) / 2
-			if leftPadding < 0 {
-				leftPadding = 0
-			}
-			rightPadding := innerWidth - leftPadding - msgWidth
-			if rightPadding < 0 {
-				rightPadding = 0
-			}
+			leftPadding := max((innerWidth-msgWidth)/2, 0)
+			rightPadding := max(innerWidth-leftPadding-msgWidth, 0)
 			line = strings.Repeat(" ", leftPadding) + msgText + strings.Repeat(" ", rightPadding)
 		} else {
 			line = strings.Repeat(" ", innerWidth)

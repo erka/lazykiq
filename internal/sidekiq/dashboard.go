@@ -93,7 +93,7 @@ func (c *Client) GetStatsHistory(ctx context.Context, days int) (StatsHistory, e
 
 func parseInfo(raw string) map[string]string {
 	values := make(map[string]string)
-	for _, line := range strings.Split(raw, "\n") {
+	for line := range strings.SplitSeq(raw, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -107,7 +107,7 @@ func parseInfo(raw string) map[string]string {
 	return values
 }
 
-func parseInt64(value interface{}) int64 {
+func parseInt64(value any) int64 {
 	switch v := value.(type) {
 	case nil:
 		return 0

@@ -94,7 +94,6 @@ func TestJobRecord_DisplayClass(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			record := NewJobRecord(tt.value, "")
 			if got := record.DisplayClass(); got != tt.want {
@@ -108,45 +107,44 @@ func TestJobRecord_DisplayArgs(t *testing.T) {
 	tests := []struct {
 		name  string
 		value string
-		want  []interface{}
+		want  []any
 	}{
 		{
 			name:  "wrapper_basic",
 			value: `{"class":"ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper","wrapped":"MyJob","args":[{"arguments":[1,2]}]}`,
-			want:  []interface{}{float64(1), float64(2)},
+			want:  []any{float64(1), float64(2)},
 		},
 		{
 			name:  "wrapper_global_id",
 			value: `{"class":"ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper","wrapped":"MyJob","args":[{"arguments":[{"_aj_globalid":"gid://app/Model/1"}]}]}`,
-			want:  []interface{}{"gid://app/Model/1"},
+			want:  []any{"gid://app/Model/1"},
 		},
 		{
 			name:  "wrapper_strips_aj_keys",
 			value: `{"class":"ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper","wrapped":"MyJob","args":[{"arguments":[{"_aj_extras":"ignore","foo":"bar"}]}]}`,
-			want:  []interface{}{map[string]interface{}{"foo": "bar"}},
+			want:  []any{map[string]any{"foo": "bar"}},
 		},
 		{
 			name:  "mailer_delivery",
 			value: `{"class":"Sidekiq::ActiveJob::Wrapper","wrapped":"ActionMailer::DeliveryJob","args":[{"arguments":["UserMailer","welcome","deliver_now","user_id"]}]}`,
-			want:  []interface{}{"user_id"},
+			want:  []any{"user_id"},
 		},
 		{
 			name:  "mailer_params",
 			value: `{"class":"Sidekiq::ActiveJob::Wrapper","wrapped":"ActionMailer::MailDeliveryJob","args":[{"arguments":["UserMailer","welcome","deliver_now",{"params":{"x":1},"args":[2,3]}]}]}`,
-			want: []interface{}{
-				map[string]interface{}{"x": float64(1)},
-				[]interface{}{float64(2), float64(3)},
+			want: []any{
+				map[string]any{"x": float64(1)},
+				[]any{float64(2), float64(3)},
 			},
 		},
 		{
 			name:  "encrypted",
 			value: `{"class":"PlainJob","encrypt":true,"args":[1,"secret"]}`,
-			want:  []interface{}{float64(1), "[encrypted data]"},
+			want:  []any{float64(1), "[encrypted data]"},
 		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			record := NewJobRecord(tt.value, "")
 			if got := record.DisplayArgs(); !reflect.DeepEqual(got, tt.want) {

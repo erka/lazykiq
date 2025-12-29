@@ -270,18 +270,12 @@ func (m Model) View() string {
 // updateDimensions recalculates panel dimensions.
 func (m *Model) updateDimensions() {
 	// Split width: 40% left, 60% right (with 1 char gap)
-	m.leftWidth = (m.width * 40) / 100
-	if m.leftWidth < 30 {
-		m.leftWidth = 30
-	}
+	m.leftWidth = max((m.width*40)/100, 30)
 	m.rightWidth = m.width - m.leftWidth
 
 	// Height minus border (2 lines: top and bottom)
 	// Note: title is part of the top border, not a separate line
-	m.panelHeight = m.height - 2
-	if m.panelHeight < 1 {
-		m.panelHeight = 1
-	}
+	m.panelHeight = max(m.height-2, 1)
 }
 
 func (m Model) maxLeftYOffset() int {
@@ -347,10 +341,7 @@ func (m Model) countLeftPanelLines() int {
 	// Calculate value width (same as in renderLeftPanel)
 	innerWidth := m.leftWidth - 2
 	valueIndent := 2
-	valueWidth := innerWidth - 1 - valueIndent - 1
-	if valueWidth < 10 {
-		valueWidth = 10
-	}
+	valueWidth := max(innerWidth-1-valueIndent-1, 10)
 
 	count := 0
 	for _, prop := range m.properties {
@@ -490,10 +481,7 @@ func (m Model) renderLeftPanel() string {
 	innerWidth := m.leftWidth - 2 // minus left and right border
 
 	// Top border with title
-	titlePad := innerWidth - titleWidth - 1
-	if titlePad < 0 {
-		titlePad = 0
-	}
+	titlePad := max(innerWidth-titleWidth-1, 0)
 	topBorder := borderStyle.Render(border.TopLeft) +
 		hBar +
 		m.styles.PanelTitle.Render(title) +
@@ -502,10 +490,9 @@ func (m Model) renderLeftPanel() string {
 
 	// Calculate available width for values (with 2-space indent)
 	valueIndent := "  "
-	valueWidth := innerWidth - 1 - len(valueIndent) - 1 // left padding, indent, right padding
-	if valueWidth < 10 {
-		valueWidth = 10
-	}
+	valueWidth := max(
+		// left padding, indent, right padding
+		innerWidth-1-len(valueIndent)-1, 10)
 
 	// Build all display lines (label on own row, value indented below)
 	allLines := make([]string, 0, len(m.properties)*2)
@@ -525,10 +512,7 @@ func (m Model) renderLeftPanel() string {
 
 	// Apply vertical scroll
 	var contentLines []string
-	endY := m.leftYOffset + m.panelHeight
-	if endY > len(allLines) {
-		endY = len(allLines)
-	}
+	endY := min(m.leftYOffset+m.panelHeight, len(allLines))
 	if m.leftYOffset < len(allLines) {
 		contentLines = allLines[m.leftYOffset:endY]
 	}
@@ -544,10 +528,7 @@ func (m Model) renderLeftPanel() string {
 	middleLines := make([]string, 0, len(contentLines))
 	for _, line := range contentLines {
 		lineWidth := lipgloss.Width(line)
-		padding := innerWidth - lineWidth
-		if padding < 0 {
-			padding = 0
-		}
+		padding := max(innerWidth-lineWidth, 0)
 		middleLines = append(middleLines, vBar+line+strings.Repeat(" ", padding)+vBarRight)
 	}
 
@@ -580,10 +561,9 @@ func (m Model) renderRightPanel() string {
 	innerWidth := m.rightWidth - 2 // minus left and right border
 
 	// Top border with title on left and hint on right
-	middlePad := innerWidth - titleWidth - hintWidth - 2 // -2 for the two hBar segments
-	if middlePad < 0 {
-		middlePad = 0
-	}
+	middlePad := max(
+		// -2 for the two hBar segments
+		innerWidth-titleWidth-hintWidth-2, 0)
 	topBorder := borderStyle.Render(border.TopLeft) +
 		hBar +
 		m.styles.PanelTitle.Render(title) +
@@ -593,10 +573,7 @@ func (m Model) renderRightPanel() string {
 		borderStyle.Render(border.TopRight)
 
 	// Content lines with horizontal scroll
-	endY := m.rightYOffset + m.panelHeight
-	if endY > len(m.jsonLines) {
-		endY = len(m.jsonLines)
-	}
+	endY := min(m.rightYOffset+m.panelHeight, len(m.jsonLines))
 	contentCap := 0
 	if endY > m.rightYOffset {
 		contentCap = endY - m.rightYOffset
@@ -624,10 +601,7 @@ func (m Model) renderRightPanel() string {
 	middleLines := make([]string, 0, len(contentLines))
 	for _, line := range contentLines {
 		lineWidth := lipgloss.Width(line)
-		padding := innerWidth - lineWidth
-		if padding < 0 {
-			padding = 0
-		}
+		padding := max(innerWidth-lineWidth, 0)
 		middleLines = append(middleLines, vBar+line+strings.Repeat(" ", padding)+vBarRight)
 	}
 

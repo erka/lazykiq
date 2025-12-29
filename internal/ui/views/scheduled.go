@@ -285,10 +285,7 @@ var scheduledJobColumns = []table.Column{
 // updateTableSize updates the table dimensions based on current view size.
 func (s *Scheduled) updateTableSize() {
 	// Calculate table height: total height - box borders
-	tableHeight := s.height - 3
-	if tableHeight < 3 {
-		tableHeight = 3
-	}
+	tableHeight := max(s.height-3, 3)
 	// Table width: view width - box borders - padding
 	tableWidth := s.width - 4
 	s.table.SetSize(tableWidth, tableHeight)

@@ -227,7 +227,7 @@ func (c *Client) GetBusyData(ctx context.Context) (BusyData, error) {
 
 		// Parse each job
 		for tid, workJSON := range work {
-			var workData map[string]interface{}
+			var workData map[string]any
 			if err := json.Unmarshal([]byte(workJSON), &workData); err != nil {
 				continue
 			}
@@ -258,13 +258,13 @@ func (c *Client) GetBusyData(ctx context.Context) (BusyData, error) {
 	return data, nil
 }
 
-func parseProcessInfo(field interface{}, process *Process) {
+func parseProcessInfo(field any, process *Process) {
 	infoStr, ok := field.(string)
 	if !ok || infoStr == "" {
 		return
 	}
 
-	var info map[string]interface{}
+	var info map[string]any
 	if err := json.Unmarshal([]byte(infoStr), &info); err != nil {
 		return
 	}
@@ -272,7 +272,7 @@ func parseProcessInfo(field interface{}, process *Process) {
 	if concurrency, ok := info["concurrency"].(float64); ok {
 		process.Concurrency = int(concurrency)
 	}
-	if queues, ok := info["queues"].([]interface{}); ok {
+	if queues, ok := info["queues"].([]any); ok {
 		process.Queues = make([]string, 0, len(queues))
 		for _, q := range queues {
 			queueName, ok := q.(string)
@@ -289,7 +289,7 @@ func parseProcessInfo(field interface{}, process *Process) {
 	}
 }
 
-func parseOptionalInt64(field interface{}) (int64, bool) {
+func parseOptionalInt64(field any) (int64, bool) {
 	value, ok := field.(string)
 	if !ok || value == "" {
 		return 0, false

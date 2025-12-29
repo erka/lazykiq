@@ -61,22 +61,22 @@ func TestBytes(t *testing.T) {
 func TestArgs(t *testing.T) {
 	tests := []struct {
 		name string
-		args []interface{}
+		args []any
 		want string
 	}{
 		{name: "empty", args: nil, want: ""},
 		{
 			name: "json",
-			args: []interface{}{
+			args: []any{
 				"foo",
 				1,
-				map[string]interface{}{"a": "b"},
+				map[string]any{"a": "b"},
 			},
 			want: `"foo", 1, {"a":"b"}`,
 		},
 		{
 			name: "marshal-error",
-			args: []interface{}{
+			args: []any{
 				badJSON{},
 			},
 			want: "{}",

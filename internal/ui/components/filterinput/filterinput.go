@@ -232,10 +232,7 @@ func (m *Model) applyWidth() {
 		return
 	}
 	promptWidth := lipgloss.Width(m.input.Prompt)
-	width := m.width - promptWidth
-	if width < 1 {
-		width = 1
-	}
+	width := max(m.width-promptWidth, 1)
 	m.input.SetWidth(width)
 }
 

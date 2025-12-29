@@ -177,10 +177,7 @@ func WithWidth(w int) Option {
 func WithHeight(h int) Option {
 	return func(m *Model) {
 		m.height = h
-		m.viewportHeight = h - 2 // minus header and separator
-		if m.viewportHeight < 1 {
-			m.viewportHeight = 1
-		}
+		m.viewportHeight = max(h-2, 1) // minus header and separator
 	}
 }
 
@@ -201,10 +198,7 @@ func (m *Model) SetStyles(s Styles) {
 func (m *Model) SetSize(width, height int) {
 	m.width = width
 	m.height = height
-	m.viewportHeight = height - 2 // minus header and separator
-	if m.viewportHeight < 1 {
-		m.viewportHeight = 1
-	}
+	m.viewportHeight = max(height-2, 1) // minus header and separator
 	m.updateViewport()
 	m.clampScroll()
 }
@@ -397,10 +391,7 @@ func (m *Model) clampScroll() {
 		m.xOffset = 0
 	}
 
-	maxY := len(m.rows) - m.viewportHeight
-	if maxY < 0 {
-		maxY = 0
-	}
+	maxY := max(len(m.rows)-m.viewportHeight, 0)
 	if m.yOffset > maxY {
 		m.yOffset = maxY
 	}
@@ -420,10 +411,7 @@ func (m *Model) ensureSelectedVisible() {
 
 // gotoBottomOffset scrolls to show the last rows.
 func (m *Model) gotoBottomOffset() {
-	maxOffset := len(m.rows) - m.viewportHeight
-	if maxOffset < 0 {
-		maxOffset = 0
-	}
+	maxOffset := max(len(m.rows)-m.viewportHeight, 0)
 	m.yOffset = maxOffset
 }
 
@@ -565,22 +553,13 @@ func (m Model) getVisibleContent() string {
 	lines := strings.Split(m.content, "\n")
 
 	// Clamp yOffset to valid range
-	yOffset := m.yOffset
-	if yOffset < 0 {
-		yOffset = 0
-	}
+	yOffset := max(m.yOffset, 0)
 	if yOffset >= len(lines) {
-		yOffset = len(lines) - 1
-		if yOffset < 0 {
-			yOffset = 0
-		}
+		yOffset = max(len(lines)-1, 0)
 	}
 
 	// Get visible slice
-	end := yOffset + m.viewportHeight
-	if end > len(lines) {
-		end = len(lines)
-	}
+	end := min(yOffset+m.viewportHeight, len(lines))
 
 	return strings.Join(lines[yOffset:end], "\n")
 }
@@ -614,7 +593,7 @@ func (m Model) computeLastColWidth(colWidths []int) int {
 	}
 
 	fixedWidth := 0
-	for i := 0; i < lastCol; i++ {
+	for i := range lastCol {
 		width := m.columns[i].Width
 		if colWidths != nil && i < len(colWidths) {
 			width = colWidths[i]

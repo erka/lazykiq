@@ -3,6 +3,7 @@ package navbar
 
 import (
 	"fmt"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -114,15 +115,15 @@ func (m Model) Update(_ tea.Msg) (Model, tea.Cmd) {
 func (m Model) View() string {
 	barStyle := m.styles.Bar.Width(m.width)
 
-	items := ""
+	var items strings.Builder
 	for i, v := range m.views {
 		key := m.styles.Key.Render(fmt.Sprintf("%d", i+1))
 		name := m.styles.Item.Render(v.Name)
-		items += key + name
+		items.WriteString(key + name)
 	}
 
 	// Add quit hint
-	items += m.styles.Key.Render("q") + m.styles.Quit.Render("quit")
+	items.WriteString(m.styles.Key.Render("q") + m.styles.Quit.Render("quit"))
 
-	return barStyle.Render(items)
+	return barStyle.Render(items.String())
 }

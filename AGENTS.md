@@ -6,7 +6,18 @@ Bubble Tea TUI for Sidekiq monitoring. Go 1.25.
 
 ## Code Quality
 
-* Make sure to always perform `mise run ci` to ensure code formatting matches the style of the repository, linters don't have any offenses, and tests pass.
+- Make sure to always perform `mise run ci` to ensure code formatting matches the style of the repository, linters don't have any offenses, and tests pass.
+
+```bash
+mise run ci   # run formatter, tests, linter
+mise run fmt  # format code
+mise run test # run tests
+mise run lint # run all linters
+# only focus on modernize linter
+mise run lint --enable-only modernize
+# address all auto-correctable issues
+mise run lint --enable-only modernize --fix
+```
 
 ## Structure
 

@@ -122,10 +122,7 @@ func (m Model) Height() int {
 
 // View renders the jobs box component.
 func (m Model) View() string {
-	height := m.height
-	if height < 5 {
-		height = 5
-	}
+	height := max(m.height, 5)
 
 	border := lipgloss.RoundedBorder()
 
@@ -141,10 +138,7 @@ func (m Model) View() string {
 	// Top border with title on left, meta on right
 	leftWidth := lipgloss.Width(titleLeft)
 	rightWidth := lipgloss.Width(titleRight)
-	middlePad := innerWidth - leftWidth - rightWidth - 2
-	if middlePad < 0 {
-		middlePad = 0
-	}
+	middlePad := max(innerWidth-leftWidth-rightWidth-2, 0)
 
 	hBar := m.styles.Border.Render(border.Top)
 	topBorder := m.styles.Border.Render(border.TopLeft) +
@@ -165,7 +159,7 @@ func (m Model) View() string {
 	var middleLines []string
 	contentHeight := height - 2 // minus top and bottom borders
 
-	for i := 0; i < contentHeight; i++ {
+	for i := range contentHeight {
 		var line string
 		if i < len(lines) {
 			line = lines[i]

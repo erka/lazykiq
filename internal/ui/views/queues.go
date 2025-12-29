@@ -330,10 +330,7 @@ var queueJobColumns = []table.Column{
 func (q *Queues) updateTableSize() {
 	// Calculate table height: total height - queue list - box borders
 	queueListHeight := len(q.queues)
-	tableHeight := q.height - queueListHeight - 2
-	if tableHeight < 3 {
-		tableHeight = 3
-	}
+	tableHeight := max(q.height-queueListHeight-2, 3)
 	// Table width: view width - box borders - padding
 	tableWidth := q.width - 4
 	q.table.SetSize(tableWidth, tableHeight)
@@ -356,7 +353,7 @@ func (q *Queues) updateTableRows() {
 }
 
 // formatContext formats the context map as a string.
-func formatContext(ctx map[string]interface{}) string {
+func formatContext(ctx map[string]any) string {
 	if len(ctx) == 0 {
 		return ""
 	}

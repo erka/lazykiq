@@ -13,12 +13,12 @@ import (
 // JobRecord represents a pending job within a Sidekiq queue.
 // Mirrors Sidekiq::JobRecord.
 type JobRecord struct {
-	value string                 // the underlying String in Redis
-	item  map[string]interface{} // the parsed job data
-	queue string                 // the queue associated with this job
+	value string         // the underlying String in Redis
+	item  map[string]any // the parsed job data
+	queue string         // the queue associated with this job
 
-	args               []interface{}
-	displayArgs        []interface{}
+	args               []any
+	displayArgs        []any
 	displayArgsLoaded  bool
 	displayClass       string
 	displayClassLoaded bool
@@ -35,8 +35,8 @@ func NewJobRecord(value string, queueName string) *JobRecord {
 	}
 
 	if err := json.Unmarshal([]byte(value), &jr.item); err != nil {
-		jr.item = make(map[string]interface{})
-		jr.args = []interface{}{value}
+		jr.item = make(map[string]any)
+		jr.args = []any{value}
 	}
 
 	// Extract queue from item if not provided
@@ -108,7 +108,7 @@ func (jr *JobRecord) unwrapActiveJobDisplayClass(displayClass string) string {
 	if !ok {
 		return displayClass
 	}
-	deserialized, ok := deserializeArgument(rawArgs).([]interface{})
+	deserialized, ok := deserializeArgument(rawArgs).([]any)
 	if !ok || len(deserialized) < 2 {
 		return displayClass
 	}
@@ -121,11 +121,11 @@ func (jr *JobRecord) unwrapActiveJobDisplayClass(displayClass string) string {
 }
 
 // Args returns the job arguments.
-func (jr *JobRecord) Args() []interface{} {
+func (jr *JobRecord) Args() []any {
 	if jr.args != nil {
 		return jr.args
 	}
-	if args, ok := jr.item["args"].([]interface{}); ok {
+	if args, ok := jr.item["args"].([]any); ok {
 		jr.args = args
 		return jr.args
 	}
@@ -133,7 +133,7 @@ func (jr *JobRecord) Args() []interface{} {
 }
 
 // DisplayArgs returns arguments unwrapped for ActiveJob and other known wrappers.
-func (jr *JobRecord) DisplayArgs() []interface{} {
+func (jr *JobRecord) DisplayArgs() []any {
 	if jr.displayArgsLoaded {
 		return jr.displayArgs
 	}
@@ -152,7 +152,7 @@ func (jr *JobRecord) DisplayArgs() []interface{} {
 		return jr.displayArgs
 	}
 
-	displayArgs := make([]interface{}, len(args))
+	displayArgs := make([]any, len(args))
 	copy(displayArgs, args)
 
 	encrypted, ok := jr.item["encrypt"].(bool)
@@ -165,10 +165,10 @@ func (jr *JobRecord) DisplayArgs() []interface{} {
 	return jr.displayArgs
 }
 
-func (jr *JobRecord) unwrapActiveJobArgs() []interface{} {
+func (jr *JobRecord) unwrapActiveJobArgs() []any {
 	args := jr.Args()
 	wrapped, hasWrapped := jr.item["wrapped"].(string)
-	jobArgs := []interface{}{}
+	jobArgs := []any{}
 	if hasWrapped {
 		jobArgs = extractActiveJobArgs(args)
 	}
@@ -191,15 +191,15 @@ func (jr *JobRecord) unwrapActiveJobArgs() []interface{} {
 }
 
 // Context returns the current attributes (cattr) for the job.
-func (jr *JobRecord) Context() map[string]interface{} {
-	if cattr, ok := jr.item["cattr"].(map[string]interface{}); ok {
+func (jr *JobRecord) Context() map[string]any {
+	if cattr, ok := jr.item["cattr"].(map[string]any); ok {
 		return cattr
 	}
 	return nil
 }
 
 // Item returns the full parsed job data.
-func (jr *JobRecord) Item() map[string]interface{} {
+func (jr *JobRecord) Item() map[string]any {
 	return jr.item
 }
 
@@ -283,7 +283,7 @@ func (jr *JobRecord) CreatedAt() float64 {
 
 // Tags returns any tags associated with the job.
 func (jr *JobRecord) Tags() []string {
-	rawTags, ok := jr.item["tags"].([]interface{})
+	rawTags, ok := jr.item["tags"].([]any)
 	if !ok {
 		return nil
 	}
@@ -309,7 +309,7 @@ func (jr *JobRecord) ErrorBacktrace() []string {
 	case []string:
 		jr.errorBacktrace = raw
 		return jr.errorBacktrace
-	case []interface{}:
+	case []any:
 		lines := make([]string, 0, len(raw))
 		for _, line := range raw {
 			lines = append(lines, fmt.Sprint(line))
@@ -357,19 +357,19 @@ func (jr *JobRecord) Latency() float64 {
 	return nowSec - timestamp
 }
 
-func deserializeArgument(argument interface{}) interface{} {
+func deserializeArgument(argument any) any {
 	switch value := argument.(type) {
-	case []interface{}:
-		out := make([]interface{}, len(value))
+	case []any:
+		out := make([]any, len(value))
 		for i, item := range value {
 			out[i] = deserializeArgument(item)
 		}
 		return out
-	case map[string]interface{}:
+	case map[string]any:
 		if isSerializedGlobalID(value) {
 			return value[globalIDKey]
 		}
-		out := make(map[string]interface{}, len(value))
+		out := make(map[string]any, len(value))
 		for key, item := range value {
 			if strings.HasPrefix(key, activeJobPrefix) {
 				continue
@@ -390,7 +390,7 @@ func isActionMailerWrapper(klass string) bool {
 	return klass == actionMailerDeliveryJob || klass == actionMailerMailDeliveryJob
 }
 
-func firstStringArg(args []interface{}) (string, bool) {
+func firstStringArg(args []any) (string, bool) {
 	if len(args) == 0 {
 		return "", false
 	}
@@ -398,42 +398,42 @@ func firstStringArg(args []interface{}) (string, bool) {
 	return value, ok
 }
 
-func extractActiveJobArgs(args []interface{}) []interface{} {
+func extractActiveJobArgs(args []any) []any {
 	argsMap, ok := firstArgsMap(args)
 	if !ok {
-		return []interface{}{}
+		return []any{}
 	}
 	rawArgs, ok := argsMap["arguments"]
 	if !ok {
-		return []interface{}{}
+		return []any{}
 	}
-	deserialized, ok := deserializeArgument(rawArgs).([]interface{})
+	deserialized, ok := deserializeArgument(rawArgs).([]any)
 	if !ok {
-		return []interface{}{}
+		return []any{}
 	}
 	return deserialized
 }
 
-func trimActionMailerArgs(args []interface{}) []interface{} {
+func trimActionMailerArgs(args []any) []any {
 	if len(args) <= 3 {
-		return []interface{}{}
+		return []any{}
 	}
 	return args[3:]
 }
 
-func normalizeMailDeliveryArgs(args []interface{}) []interface{} {
+func normalizeMailDeliveryArgs(args []any) []any {
 	args = trimActionMailerArgs(args)
 	if len(args) == 0 {
-		return []interface{}{}
+		return []any{}
 	}
-	paramsMap, ok := args[0].(map[string]interface{})
+	paramsMap, ok := args[0].(map[string]any)
 	if !ok {
-		return []interface{}{}
+		return []any{}
 	}
-	return []interface{}{paramsMap["params"], paramsMap["args"]}
+	return []any{paramsMap["params"], paramsMap["args"]}
 }
 
-func isSerializedGlobalID(value map[string]interface{}) bool {
+func isSerializedGlobalID(value map[string]any) bool {
 	if len(value) != 1 {
 		return false
 	}
@@ -441,11 +441,11 @@ func isSerializedGlobalID(value map[string]interface{}) bool {
 	return ok
 }
 
-func firstArgsMap(args []interface{}) (map[string]interface{}, bool) {
+func firstArgsMap(args []any) (map[string]any, bool) {
 	if len(args) == 0 {
 		return nil, false
 	}
-	if argsMap, ok := args[0].(map[string]interface{}); ok {
+	if argsMap, ok := args[0].(map[string]any); ok {
 		return argsMap, true
 	}
 	return nil, false

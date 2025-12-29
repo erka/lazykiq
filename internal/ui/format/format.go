@@ -47,7 +47,7 @@ func Bytes(bytes int64) string {
 }
 
 // Args formats job arguments as JSON without outer brackets.
-func Args(args []interface{}) string {
+func Args(args []any) string {
 	if len(args) == 0 {
 		return ""
 	}

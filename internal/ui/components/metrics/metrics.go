@@ -150,10 +150,7 @@ func (m Model) View() string {
 		return barStyle.Render("")
 	}
 
-	contentWidth := m.width - barStyle.GetHorizontalPadding()
-	if contentWidth < 0 {
-		contentWidth = 0
-	}
+	contentWidth := max(m.width-barStyle.GetHorizontalPadding(), 0)
 
 	baseItems, baseWidths, maxWidth := buildBaseItems(baseMetrics, m.styles)
 	sep := " "

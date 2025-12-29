@@ -164,10 +164,7 @@ func (d *Dashboard) Update(msg tea.Msg) (View, tea.Cmd) {
 func (d *Dashboard) adjustFocusedPane(delta int) (View, tea.Cmd) {
 	switch d.focusedPane {
 	case dashboardPaneRealtime:
-		next := d.realtimeInterval + delta
-		if next < 5 {
-			next = 5
-		}
+		next := max(d.realtimeInterval+delta, 5)
 		if next > 20 {
 			next = 20
 		}
@@ -177,10 +174,7 @@ func (d *Dashboard) adjustFocusedPane(delta int) (View, tea.Cmd) {
 			return d, tea.Batch(d.fetchRealtimeCmd(), d.realtimeTickCmd())
 		}
 	case dashboardPaneHistory:
-		next := d.historyRangeIdx + delta
-		if next < 0 {
-			next = 0
-		}
+		next := max(d.historyRangeIdx+delta, 0)
 		if next >= len(d.historyRanges) {
 			next = len(d.historyRanges) - 1
 		}
@@ -199,10 +193,7 @@ func (d *Dashboard) View() string {
 	}
 
 	redisLine := d.renderRedisInfoLine()
-	remaining := d.height - 1
-	if remaining < 2 {
-		remaining = 2
-	}
+	remaining := max(d.height-1, 2)
 
 	topHeight := remaining / 2
 	bottomHeight := remaining - topHeight
@@ -460,7 +451,7 @@ func (d *Dashboard) renderTimeSeriesChart(width, height int, times []time.Time, 
 	}
 
 	maxVal := int64(1)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if processed[i] > maxVal {
 			maxVal = processed[i]
 		}
@@ -498,7 +489,7 @@ func (d *Dashboard) renderTimeSeriesChart(width, height int, times []time.Time, 
 	chart.SetStyle(success)
 	chart.SetDataSetStyle("failed", failure)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		pointTime := times[i]
 		chart.Push(tslc.TimePoint{Time: pointTime, Value: float64(processed[i])})
 		chart.PushDataSet("failed", tslc.TimePoint{Time: pointTime, Value: float64(failed[i])})
@@ -514,15 +505,12 @@ func renderCenteredLoading(width, height int) string {
 	}
 	lines := make([]string, height)
 	target := height / 2
-	for i := 0; i < height; i++ {
+	for i := range height {
 		lines[i] = strings.Repeat(" ", width)
 	}
 	if width > 0 {
 		trimmed := lipgloss.NewStyle().MaxWidth(width).Render("Loading...")
-		padding := (width - lipgloss.Width(trimmed)) / 2
-		if padding < 0 {
-			padding = 0
-		}
+		padding := max((width-lipgloss.Width(trimmed))/2, 0)
 		lines[target] = strings.Repeat(" ", padding) + trimmed
 	}
 	return strings.Join(lines, "\n")
@@ -576,7 +564,7 @@ func (d *Dashboard) seedRealtimeSeries() {
 	}
 	interval := time.Duration(d.realtimeInterval) * time.Second
 	start := time.Now().Add(-interval * time.Duration(maxPoints-1))
-	for i := 0; i < maxPoints; i++ {
+	for i := range maxPoints {
 		d.realtimeTimes = append(d.realtimeTimes, start.Add(interval*time.Duration(i)))
 		d.realtimeProcessed = append(d.realtimeProcessed, 0)
 		d.realtimeFailed = append(d.realtimeFailed, 0)

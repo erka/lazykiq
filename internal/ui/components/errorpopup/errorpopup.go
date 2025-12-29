@@ -163,10 +163,7 @@ func (m Model) renderErrorBox(title, content string, width int) string {
 	// Calculate remaining width for horizontal bars
 	remainingWidth := width - 2 - titleWidth // -2 for corners
 	leftPad := 1
-	rightPad := remainingWidth - leftPad
-	if rightPad < 0 {
-		rightPad = 0
-	}
+	rightPad := max(remainingWidth-leftPad, 0)
 
 	topBorder := topLeft + strings.Repeat(hBar, leftPad) + styledTitle + strings.Repeat(hBar, rightPad) + topRight
 
