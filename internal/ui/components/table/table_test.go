@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 func blankStyles() Styles {
@@ -165,14 +165,14 @@ func TestUpdate_KeyHandling(t *testing.T) {
 	}{
 		{
 			name:       "LineDown",
-			msg:        tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")},
+			msg:        tea.KeyPressMsg{Code: 'j'},
 			wantCursor: 1,
 			wantX:      0,
 			wantY:      0,
 		},
 		{
 			name:       "LineUp",
-			msg:        tea.KeyMsg{Type: tea.KeyUp},
+			msg:        tea.KeyPressMsg{Code: tea.KeyUp},
 			setup:      func(m *Model) { m.cursor = 2 },
 			wantCursor: 1,
 			wantX:      0,
@@ -180,21 +180,21 @@ func TestUpdate_KeyHandling(t *testing.T) {
 		},
 		{
 			name:       "PageDownClamp",
-			msg:        tea.KeyMsg{Type: tea.KeyPgDown},
+			msg:        tea.KeyPressMsg{Code: tea.KeyPgDown},
 			wantCursor: 4,
 			wantX:      0,
 			wantY:      3,
 		},
 		{
 			name:       "GotoBottom",
-			msg:        tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")},
+			msg:        tea.KeyPressMsg{Code: 'G'},
 			wantCursor: 4,
 			wantX:      0,
 			wantY:      3,
 		},
 		{
 			name:       "GotoTop",
-			msg:        tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")},
+			msg:        tea.KeyPressMsg{Code: 'g'},
 			setup:      func(m *Model) { m.cursor = 3; m.yOffset = 2 },
 			wantCursor: 0,
 			wantX:      0,
@@ -202,14 +202,14 @@ func TestUpdate_KeyHandling(t *testing.T) {
 		},
 		{
 			name:       "ScrollRight",
-			msg:        tea.KeyMsg{Type: tea.KeyRight},
+			msg:        tea.KeyPressMsg{Code: tea.KeyRight},
 			wantCursor: 0,
 			wantX:      4,
 			wantY:      0,
 		},
 		{
 			name:       "ScrollLeftClamp",
-			msg:        tea.KeyMsg{Type: tea.KeyLeft},
+			msg:        tea.KeyPressMsg{Code: tea.KeyLeft},
 			setup:      func(m *Model) { m.xOffset = 2 },
 			wantCursor: 0,
 			wantX:      0,
@@ -217,7 +217,7 @@ func TestUpdate_KeyHandling(t *testing.T) {
 		},
 		{
 			name:       "Home",
-			msg:        tea.KeyMsg{Type: tea.KeyHome},
+			msg:        tea.KeyPressMsg{Code: tea.KeyHome},
 			setup:      func(m *Model) { m.xOffset = 4 },
 			wantCursor: 0,
 			wantX:      0,
@@ -225,7 +225,7 @@ func TestUpdate_KeyHandling(t *testing.T) {
 		},
 		{
 			name:       "End",
-			msg:        tea.KeyMsg{Type: tea.KeyEnd},
+			msg:        tea.KeyPressMsg{Code: tea.KeyEnd},
 			wantCursor: 0,
 			wantX:      base.maxScrollOffset(),
 			wantY:      0,

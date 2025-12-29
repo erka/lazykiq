@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
 	"github.com/kpumuk/lazykiq/internal/ui/components/errorpopup"
 	"github.com/kpumuk/lazykiq/internal/ui/components/metrics"
@@ -259,9 +259,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (a App) View() string {
+func (a App) View() tea.View {
+	var v tea.View
+	v.AltScreen = true
+
 	if !a.ready {
-		return "Initializing..."
+		v.SetContent("Initializing...")
+		return v
 	}
 
 	content := a.views[a.activeView].View()
@@ -274,10 +278,12 @@ func (a App) View() string {
 	}
 
 	// Build the layout: metrics (top) + content (middle) + navbar (bottom)
-	return lipgloss.JoinVertical(
+	v.SetContent(lipgloss.JoinVertical(
 		lipgloss.Left,
 		a.metrics.View(),
 		content,
 		a.navbar.View(),
-	)
+	))
+
+	return v
 }

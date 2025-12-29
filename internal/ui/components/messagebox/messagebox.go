@@ -3,7 +3,7 @@ package messagebox
 import (
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // Styles holds the styles needed by the message box.

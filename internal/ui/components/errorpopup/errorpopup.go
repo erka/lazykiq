@@ -3,7 +3,7 @@ package errorpopup
 import (
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/kpumuk/lazykiq/internal/ui/theme"
 )
 

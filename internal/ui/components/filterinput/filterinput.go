@@ -3,9 +3,9 @@ package filterinput
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type Action int
@@ -208,10 +208,17 @@ func (m Model) View() string {
 }
 
 func (m *Model) applyStyles() {
-	m.input.PromptStyle = m.styles.Prompt
-	m.input.TextStyle = m.styles.Text
-	m.input.PlaceholderStyle = m.styles.Placeholder
-	m.input.Cursor.Style = m.styles.Cursor
+	styles := m.input.Styles()
+	styles.Focused.Prompt = m.styles.Prompt
+	styles.Focused.Text = m.styles.Text
+	styles.Focused.Placeholder = m.styles.Placeholder
+	styles.Blurred.Prompt = m.styles.Prompt
+	styles.Blurred.Text = m.styles.Text
+	styles.Blurred.Placeholder = m.styles.Placeholder
+	if cursorColor := m.styles.Cursor.GetForeground(); cursorColor != nil {
+		styles.Cursor.Color = cursorColor
+	}
+	m.input.SetStyles(styles)
 }
 
 func (m *Model) applyWidth() {
@@ -223,7 +230,7 @@ func (m *Model) applyWidth() {
 	if width < 1 {
 		width = 1
 	}
-	m.input.Width = width
+	m.input.SetWidth(width)
 }
 
 func (m *Model) syncPlaceholder() {

@@ -1,115 +1,116 @@
 package theme
 
-import "github.com/charmbracelet/lipgloss"
+import "charm.land/lipgloss/v2"
+import "charm.land/lipgloss/v2/compat"
 
 // Theme defines all colors used throughout the UI.
 type Theme struct {
 	// Base colors
-	Primary   lipgloss.AdaptiveColor
-	Secondary lipgloss.AdaptiveColor
+	Primary   compat.AdaptiveColor
+	Secondary compat.AdaptiveColor
 
 	// Text colors
-	Text       lipgloss.AdaptiveColor
-	TextMuted  lipgloss.AdaptiveColor
-	TextBright lipgloss.AdaptiveColor
+	Text       compat.AdaptiveColor
+	TextMuted  compat.AdaptiveColor
+	TextBright compat.AdaptiveColor
 
 	// Background colors
-	Bg           lipgloss.AdaptiveColor
-	BgAlt        lipgloss.AdaptiveColor
-	MetricsBarBg lipgloss.AdaptiveColor
+	Bg           compat.AdaptiveColor
+	BgAlt        compat.AdaptiveColor
+	MetricsBarBg compat.AdaptiveColor
 
 	// Border colors
-	Border      lipgloss.AdaptiveColor
-	BorderFocus lipgloss.AdaptiveColor
+	Border      compat.AdaptiveColor
+	BorderFocus compat.AdaptiveColor
 
 	// Accent colors
-	TableSelectedFg lipgloss.AdaptiveColor
-	TableSelectedBg lipgloss.AdaptiveColor
-	Success         lipgloss.AdaptiveColor
-	Error           lipgloss.AdaptiveColor
+	TableSelectedFg compat.AdaptiveColor
+	TableSelectedBg compat.AdaptiveColor
+	Success         compat.AdaptiveColor
+	Error           compat.AdaptiveColor
 
 	// Metrics colors
-	MetricsText  lipgloss.AdaptiveColor
-	MetricsSepBg lipgloss.AdaptiveColor
+	MetricsText  compat.AdaptiveColor
+	MetricsSepBg compat.AdaptiveColor
 }
 
 // DefaultTheme is the adaptive color scheme used by default.
 // Use Open Color palette when possible to define colors: https://yeun.github.io/open-color/
 var DefaultTheme = Theme{
 	// Sidekiq-inspired primary
-	Primary: lipgloss.AdaptiveColor{
-		Light: "#B2003C",
-		Dark:  "#F73D68",
+	Primary: compat.AdaptiveColor{
+		Light: lipgloss.Color("#B2003C"),
+		Dark:  lipgloss.Color("#F73D68"),
 	},
-	Secondary: lipgloss.AdaptiveColor{
-		Light: "#6B7280", // Gray-500
-		Dark:  "#6B7280", // Gray-500
+	Secondary: compat.AdaptiveColor{
+		Light: lipgloss.Color("#6B7280"), // Gray-500
+		Dark:  lipgloss.Color("#6B7280"), // Gray-500
 	},
 
 	// Text
-	Text: lipgloss.AdaptiveColor{
-		Light: "#111827", // Gray-900
-		Dark:  "#F9FAFB", // Gray-50
+	Text: compat.AdaptiveColor{
+		Light: lipgloss.Color("#111827"), // Gray-900
+		Dark:  lipgloss.Color("#F9FAFB"), // Gray-50
 	},
-	TextMuted: lipgloss.AdaptiveColor{
-		Light: "#6B7280", // Gray-500
-		Dark:  "#9CA3AF", // Gray-400
+	TextMuted: compat.AdaptiveColor{
+		Light: lipgloss.Color("#6B7280"), // Gray-500
+		Dark:  lipgloss.Color("#9CA3AF"), // Gray-400
 	},
-	TextBright: lipgloss.AdaptiveColor{
-		Light: "#030712", // Gray-950
-		Dark:  "#FFFFFF", // White
+	TextBright: compat.AdaptiveColor{
+		Light: lipgloss.Color("#030712"), // Gray-950
+		Dark:  lipgloss.Color("#FFFFFF"), // White
 	},
 
 	// Backgrounds
-	Bg: lipgloss.AdaptiveColor{
-		Light: "#FFFFFF", // White
-		Dark:  "#111827", // Gray-900
+	Bg: compat.AdaptiveColor{
+		Light: lipgloss.Color("#FFFFFF"), // White
+		Dark:  lipgloss.Color("#111827"), // Gray-900
 	},
-	BgAlt: lipgloss.AdaptiveColor{
-		Light: "#F3F4F6", // Gray-100
-		Dark:  "#1F2937", // Gray-800
+	BgAlt: compat.AdaptiveColor{
+		Light: lipgloss.Color("#F3F4F6"), // Gray-100
+		Dark:  lipgloss.Color("#1F2937"), // Gray-800
 	},
-	MetricsBarBg: lipgloss.AdaptiveColor{
-		Light: "#1c7ed6", // blue 7
-		Dark:  "#4dabf7", // blue 4
+	MetricsBarBg: compat.AdaptiveColor{
+		Light: lipgloss.Color("#1c7ed6"), // blue 7
+		Dark:  lipgloss.Color("#4dabf7"), // blue 4
 	},
 
 	// Borders
-	Border: lipgloss.AdaptiveColor{
-		Light: "#D1D5DB", // Gray-300
-		Dark:  "#374151", // Gray-700
+	Border: compat.AdaptiveColor{
+		Light: lipgloss.Color("#D1D5DB"), // Gray-300
+		Dark:  lipgloss.Color("#374151"), // Gray-700
 	},
-	BorderFocus: lipgloss.AdaptiveColor{
-		Light: "#9CA3AF", // Gray-400
-		Dark:  "#6B7280", // Gray-500
+	BorderFocus: compat.AdaptiveColor{
+		Light: lipgloss.Color("#9CA3AF"), // Gray-400
+		Dark:  lipgloss.Color("#6B7280"), // Gray-500
 	},
 
 	// Accents
-	TableSelectedFg: lipgloss.AdaptiveColor{
-		Light: "229",
-		Dark:  "229",
+	TableSelectedFg: compat.AdaptiveColor{
+		Light: lipgloss.Color("229"),
+		Dark:  lipgloss.Color("229"),
 	},
-	TableSelectedBg: lipgloss.AdaptiveColor{
-		Light: "57",
-		Dark:  "57",
+	TableSelectedBg: compat.AdaptiveColor{
+		Light: lipgloss.Color("57"),
+		Dark:  lipgloss.Color("57"),
 	},
-	Success: lipgloss.AdaptiveColor{
-		Light: "#16A34A",
-		Dark:  "#22C55E",
+	Success: compat.AdaptiveColor{
+		Light: lipgloss.Color("#16A34A"),
+		Dark:  lipgloss.Color("#22C55E"),
 	},
-	Error: lipgloss.AdaptiveColor{
-		Light: "#FF0000",
-		Dark:  "#FF0000",
+	Error: compat.AdaptiveColor{
+		Light: lipgloss.Color("#FF0000"),
+		Dark:  lipgloss.Color("#FF0000"),
 	},
 
 	// Metrics
-	MetricsText: lipgloss.AdaptiveColor{
-		Light: "#f8f9fa",
-		Dark:  "#212529", //gray 9
+	MetricsText: compat.AdaptiveColor{
+		Light: lipgloss.Color("#f8f9fa"),
+		Dark:  lipgloss.Color("#212529"), //gray 9
 	},
-	MetricsSepBg: lipgloss.AdaptiveColor{
-		Light: "#1971c2", // blue 8
-		Dark:  "#339af0", // blue 5
+	MetricsSepBg: compat.AdaptiveColor{
+		Light: lipgloss.Color("#1971c2"), // blue 8
+		Dark:  lipgloss.Color("#339af0"), // blue 5
 	},
 }
 

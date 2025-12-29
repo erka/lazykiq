@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/fang"
 	"github.com/spf13/cobra"
 
@@ -119,7 +119,7 @@ func init() {
 		}
 
 		app := ui.New(client)
-		p := tea.NewProgram(app, tea.WithAltScreen())
+		p := tea.NewProgram(app)
 		if _, err := p.Run(); err != nil {
 			return fmt.Errorf("run lazykiq: %w", err)
 		}

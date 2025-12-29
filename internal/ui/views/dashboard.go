@@ -6,10 +6,11 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	tslc "github.com/NimbleMarkets/ntcharts/linechart/timeserieslinechart"
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	oldgloss "github.com/charmbracelet/lipgloss"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/format"
@@ -475,11 +476,25 @@ func (d *Dashboard) renderTimeSeriesChart(width, height int, times []time.Time, 
 		}
 	}
 
+	// TODO: Switch to new lipgloss styles after ntcharts switches to lipgloss v2
+	muted := oldgloss.NewStyle().Foreground(oldgloss.AdaptiveColor{
+		Light: "#6B7280", // Gray-500
+		Dark:  "#9CA3AF", // Gray-400
+	})
+	success := oldgloss.NewStyle().Foreground(oldgloss.AdaptiveColor{
+		Light: "#16A34A",
+		Dark:  "#22C55E",
+	})
+	failure := oldgloss.NewStyle().Foreground(oldgloss.AdaptiveColor{
+		Light: "#FF0000",
+		Dark:  "#FF0000",
+	})
+
 	chart := tslc.New(width, height,
 		tslc.WithXYSteps(2, 2),
 		tslc.WithXLabelFormatter(xFormatter),
 		tslc.WithYLabelFormatter(shortYLabelFormatter()),
-		tslc.WithAxesStyles(d.styles.Muted, d.styles.Muted),
+		tslc.WithAxesStyles(muted, muted),
 		tslc.WithTimeRange(minTime, maxTime),
 		tslc.WithYRange(0, float64(maxVal)),
 	)
@@ -487,8 +502,8 @@ func (d *Dashboard) renderTimeSeriesChart(width, height int, times []time.Time, 
 	chart.AutoMaxX = false
 	chart.AutoMinY = false
 	chart.AutoMaxY = false
-	chart.SetStyle(d.styles.ChartSuccess)
-	chart.SetDataSetStyle("failed", d.styles.ChartFailure)
+	chart.SetStyle(success)
+	chart.SetDataSetStyle("failed", failure)
 
 	for i := 0; i < n; i++ {
 		pointTime := times[i]

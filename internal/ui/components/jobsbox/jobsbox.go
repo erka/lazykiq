@@ -3,7 +3,7 @@ package jobsbox
 import (
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // Styles holds the styles needed by the jobs box component.
