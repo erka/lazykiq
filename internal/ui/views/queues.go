@@ -164,8 +164,8 @@ func (q *Queues) Update(msg tea.Msg) (View, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
-			idx := int(msg.String()[4] - '1')
+		case "ctrl+1", "ctrl+2", "ctrl+3", "ctrl+4", "ctrl+5", "ctrl+6", "ctrl+7", "ctrl+8", "ctrl+9":
+			idx := int(msg.String()[5] - '1')
 			if idx >= 0 && idx < len(q.queues) && q.selectedQueue != idx {
 				q.selectedQueue = idx
 				q.currentPage = 1
