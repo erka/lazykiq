@@ -313,7 +313,7 @@ func (s *Scheduled) updateTableRows() {
 			when,
 			job.Queue(),
 			job.DisplayClass(),
-			format.Args(job.Args()),
+			format.Args(job.DisplayArgs()),
 		}
 		rows = append(rows, row)
 	}

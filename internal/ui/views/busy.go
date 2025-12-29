@@ -334,7 +334,7 @@ func (b *Busy) updateTableRows() {
 			job.Queue(),
 			format.Duration(time.Now().Unix() - job.RunAt),
 			job.DisplayClass(),
-			format.Args(job.Args()),
+			format.Args(job.DisplayArgs()),
 		}
 		rows = append(rows, row)
 	}

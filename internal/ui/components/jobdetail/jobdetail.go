@@ -455,9 +455,6 @@ func (m *Model) extractProperties() {
 
 	// Arguments summary
 	displayArgs := m.job.DisplayArgs()
-	if len(displayArgs) == 0 {
-		displayArgs = m.job.Args()
-	}
 	if len(displayArgs) > 0 {
 		m.properties = append(m.properties, PropertyRow{
 			Label: "Args",

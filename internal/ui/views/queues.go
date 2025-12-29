@@ -346,7 +346,7 @@ func (q *Queues) updateTableRows() {
 		row := table.Row{
 			fmt.Sprintf("%d", job.Position),
 			job.DisplayClass(),
-			format.Args(job.Args()),
+			format.Args(job.DisplayArgs()),
 			formatContext(job.Context()),
 		}
 		rows = append(rows, row)

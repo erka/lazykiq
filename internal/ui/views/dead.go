@@ -324,7 +324,7 @@ func (d *Dead) updateTableRows() {
 			lastRetry,
 			job.Queue(),
 			job.DisplayClass(),
-			format.Args(job.Args()),
+			format.Args(job.DisplayArgs()),
 			errorStr,
 		}
 		rows = append(rows, row)
