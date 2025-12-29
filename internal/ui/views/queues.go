@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
@@ -214,18 +215,7 @@ func (q *Queues) View() string {
 		return q.renderMessage("No queues")
 	}
 
-	var output strings.Builder
-
-	// 1. Queue list at top (outside the border)
-	queueList := q.renderQueueList()
-	output.WriteString(queueList)
-	output.WriteString("\n")
-
-	// 2. Bordered "Jobs" box with table inside
-	boxContent := q.renderJobsBox()
-	output.WriteString(boxContent)
-
-	return output.String()
+	return lipgloss.JoinVertical(lipgloss.Left, q.renderQueueList(), q.renderJobsBox())
 }
 
 // Name implements View

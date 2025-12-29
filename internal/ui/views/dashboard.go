@@ -210,14 +210,7 @@ func (d *Dashboard) View() string {
 	realtimeBox := d.renderRealtimeBox(topHeight)
 	historyBox := d.renderHistoryBox(bottomHeight)
 
-	var output strings.Builder
-	output.WriteString(redisLine)
-	output.WriteString("\n")
-	output.WriteString(realtimeBox)
-	output.WriteString("\n")
-	output.WriteString(historyBox)
-
-	return output.String()
+	return lipgloss.JoinVertical(lipgloss.Left, redisLine, realtimeBox, historyBox)
 }
 
 // Name implements View

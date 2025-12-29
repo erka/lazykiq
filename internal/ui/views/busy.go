@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
@@ -139,20 +140,14 @@ func (b *Busy) View() string {
 		return b.renderMessage("No active processes")
 	}
 
-	var output strings.Builder
+	boxContent := b.renderJobsBox()
 
-	// 1. Process list at top (outside the border)
 	if len(b.data.Processes) > 0 {
 		processList := b.renderProcessList()
-		output.WriteString(processList)
-		output.WriteString("\n")
+		return lipgloss.JoinVertical(lipgloss.Left, processList, boxContent)
 	}
 
-	// 2. Bordered "Active Jobs" box with table inside
-	boxContent := b.renderJobsBox()
-	output.WriteString(boxContent)
-
-	return output.String()
+	return boxContent
 }
 
 // Name implements View
