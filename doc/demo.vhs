@@ -1,12 +1,14 @@
 Output doc/assets/demo.gif
 
 Set Shell "bash"
-Set FontSize 14
-Set Width 1200
-Set Height 800
 Set Framerate 24
-Set Padding 5
 Set FontFamily "JetBrainsMono Nerd Font"
+# Doubled values for better quality
+# See https://github.com/charmbracelet/vhs/issues/69#issuecomment-1295581303
+Set FontSize 28
+Set Width 2400
+Set Height 1600
+Set Padding 40
 
 Hide
 Type@1ms "go run ./cmd/lazykiq" Enter
