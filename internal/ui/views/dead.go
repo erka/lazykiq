@@ -9,8 +9,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
 	"github.com/kpumuk/lazykiq/internal/ui/components/filterinput"
+	"github.com/kpumuk/lazykiq/internal/ui/components/frame"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
-	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/table"
 	"github.com/kpumuk/lazykiq/internal/ui/format"
@@ -341,15 +341,25 @@ func (d *Dead) renderJobsBox() string {
 	// Get table content
 	content := d.filter.View() + "\n" + d.table.View()
 
-	box := jobsbox.New(
-		jobsbox.WithStyles(jobsbox.Styles{
-			Title:  d.styles.Title,
-			Border: d.styles.FocusBorder,
+	box := frame.New(
+		frame.WithStyles(frame.Styles{
+			Focused: frame.StyleState{
+				Title:  d.styles.Title,
+				Border: d.styles.FocusBorder,
+			},
+			Blurred: frame.StyleState{
+				Title:  d.styles.Title,
+				Border: d.styles.BorderStyle,
+			},
 		}),
-		jobsbox.WithTitle("Dead Jobs"),
-		jobsbox.WithMeta(meta),
-		jobsbox.WithContent(content),
-		jobsbox.WithSize(d.width, d.height),
+		frame.WithTitle("Dead Jobs"),
+		frame.WithTitlePadding(0),
+		frame.WithMeta(meta),
+		frame.WithContent(content),
+		frame.WithPadding(1),
+		frame.WithSize(d.width, d.height),
+		frame.WithMinHeight(5),
+		frame.WithFocused(true),
 	)
 	return box.View()
 }

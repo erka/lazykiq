@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
+	"github.com/kpumuk/lazykiq/internal/ui/components/frame"
 	"github.com/kpumuk/lazykiq/internal/ui/format"
 )
 
@@ -128,6 +129,11 @@ type Model struct {
 	panelHeight  int
 	maxJSONWidth int
 }
+
+const (
+	jobDetailPanelPadding = 1
+	jobDetailValueIndent  = 2
+)
 
 // Option is used to set options in New.
 type Option func(*Model)
@@ -295,7 +301,8 @@ func (m Model) maxRightYOffset() int {
 }
 
 func (m Model) maxRightXOffset() int {
-	maxX := m.maxJSONWidth - m.rightWidth + 4 // 4 = 2 padding + 2 border
+	contentWidth := max(m.rightWidth-2-2*jobDetailPanelPadding, 0)
+	maxX := m.maxJSONWidth - contentWidth
 	if maxX < 0 {
 		return 0
 	}
@@ -340,8 +347,8 @@ func (m Model) countLeftPanelLines() int {
 
 	// Calculate value width (same as in renderLeftPanel)
 	innerWidth := m.leftWidth - 2
-	valueIndent := 2
-	valueWidth := max(innerWidth-1-valueIndent-1, 10)
+	contentWidth := max(innerWidth-2*jobDetailPanelPadding, 0)
+	valueWidth := max(contentWidth-jobDetailValueIndent, 10)
 
 	count := 0
 	for _, prop := range m.properties {
@@ -464,49 +471,26 @@ func (m *Model) formatJSON() {
 
 // renderLeftPanel renders the properties panel.
 func (m Model) renderLeftPanel() string {
-	border := lipgloss.RoundedBorder()
-
-	// Choose border style based on focus
-	borderStyle := m.styles.Border
-	if !m.focusRight {
-		borderStyle = m.styles.FocusBorder
-	}
-
-	// Panel title
-	title := " Job Details "
-	titleWidth := lipgloss.Width(title)
-
-	// Build borders
-	hBar := borderStyle.Render(border.Top)
 	innerWidth := m.leftWidth - 2 // minus left and right border
 
-	// Top border with title
-	titlePad := max(innerWidth-titleWidth-1, 0)
-	topBorder := borderStyle.Render(border.TopLeft) +
-		hBar +
-		m.styles.PanelTitle.Render(title) +
-		strings.Repeat(hBar, titlePad) +
-		borderStyle.Render(border.TopRight)
-
 	// Calculate available width for values (with 2-space indent)
-	valueIndent := "  "
-	valueWidth := max(
-		// left padding, indent, right padding
-		innerWidth-1-len(valueIndent)-1, 10)
+	contentWidth := max(innerWidth-2*jobDetailPanelPadding, 0)
+	valueIndent := strings.Repeat(" ", jobDetailValueIndent)
+	valueWidth := max(contentWidth-jobDetailValueIndent, 10)
 
 	// Build all display lines (label on own row, value indented below)
 	allLines := make([]string, 0, len(m.properties)*2)
 	for _, prop := range m.properties {
 		// Label row
 		label := m.styles.Label.Render(prop.Label + ":")
-		allLines = append(allLines, " "+label)
+		allLines = append(allLines, label)
 		// Value rows (indented, wrapped if needed)
 		valueLines := wrapText(prop.Value, valueWidth)
 		if len(valueLines) == 0 {
 			valueLines = []string{""}
 		}
 		for _, vl := range valueLines {
-			allLines = append(allLines, " "+valueIndent+m.styles.Value.Render(vl))
+			allLines = append(allLines, valueIndent+m.styles.Value.Render(vl))
 		}
 	}
 
@@ -521,56 +505,30 @@ func (m Model) renderLeftPanel() string {
 	for len(contentLines) < m.panelHeight {
 		contentLines = append(contentLines, "")
 	}
-
-	// Add borders to content
-	vBar := borderStyle.Render(border.Left)
-	vBarRight := borderStyle.Render(border.Right)
-	middleLines := make([]string, 0, len(contentLines))
-	for _, line := range contentLines {
-		lineWidth := lipgloss.Width(line)
-		padding := max(innerWidth-lineWidth, 0)
-		middleLines = append(middleLines, vBar+line+strings.Repeat(" ", padding)+vBarRight)
-	}
-
-	// Bottom border
-	bottomBorder := borderStyle.Render(border.BottomLeft) +
-		strings.Repeat(hBar, innerWidth) +
-		borderStyle.Render(border.BottomRight)
-
-	return topBorder + "\n" + strings.Join(middleLines, "\n") + "\n" + bottomBorder
+	return frame.New(
+		frame.WithStyles(frame.Styles{
+			Focused: frame.StyleState{
+				Title:  m.styles.PanelTitle,
+				Border: m.styles.FocusBorder,
+			},
+			Blurred: frame.StyleState{
+				Title:  m.styles.PanelTitle,
+				Border: m.styles.Border,
+			},
+		}),
+		frame.WithTitle("Job Details"),
+		frame.WithTitlePadding(0),
+		frame.WithContent(strings.Join(contentLines, "\n")),
+		frame.WithPadding(jobDetailPanelPadding),
+		frame.WithSize(m.leftWidth, m.height),
+		frame.WithFocused(!m.focusRight),
+	).View()
 }
 
 // renderRightPanel renders the JSON panel.
 func (m Model) renderRightPanel() string {
-	border := lipgloss.RoundedBorder()
-
-	// Choose border style based on focus
-	borderStyle := m.styles.Border
-	if m.focusRight {
-		borderStyle = m.styles.FocusBorder
-	}
-
-	// Panel title and hint
-	title := " Job Data (JSON) "
-	hint := " Esc to close "
-	titleWidth := lipgloss.Width(title)
-	hintWidth := lipgloss.Width(hint)
-
-	// Build borders
-	hBar := borderStyle.Render(border.Top)
 	innerWidth := m.rightWidth - 2 // minus left and right border
-
-	// Top border with title on left and hint on right
-	middlePad := max(
-		// -2 for the two hBar segments
-		innerWidth-titleWidth-hintWidth-2, 0)
-	topBorder := borderStyle.Render(border.TopLeft) +
-		hBar +
-		m.styles.PanelTitle.Render(title) +
-		strings.Repeat(hBar, middlePad) +
-		m.styles.Muted.Render(hint) +
-		hBar +
-		borderStyle.Render(border.TopRight)
+	contentWidth := max(innerWidth-2*jobDetailPanelPadding, 0)
 
 	// Content lines with horizontal scroll
 	endY := min(m.rightYOffset+m.panelHeight, len(m.jsonLines))
@@ -580,37 +538,38 @@ func (m Model) renderRightPanel() string {
 	}
 	contentLines := make([]string, 0, contentCap)
 
-	contentWidth := innerWidth - 2 // padding on each side
-
 	for i := m.rightYOffset; i < endY; i++ {
 		line := m.jsonLines[i]
 		// Apply horizontal scroll BEFORE styling
 		line = applyHorizontalScroll(line, m.rightXOffset, contentWidth)
-		line = " " + m.styles.JSON.Render(line) + " "
+		line = m.styles.JSON.Render(line)
 		contentLines = append(contentLines, line)
 	}
 
 	// Pad to panel height
 	for len(contentLines) < m.panelHeight {
-		contentLines = append(contentLines, strings.Repeat(" ", innerWidth))
+		contentLines = append(contentLines, "")
 	}
-
-	// Add borders to content
-	vBar := borderStyle.Render(border.Left)
-	vBarRight := borderStyle.Render(border.Right)
-	middleLines := make([]string, 0, len(contentLines))
-	for _, line := range contentLines {
-		lineWidth := lipgloss.Width(line)
-		padding := max(innerWidth-lineWidth, 0)
-		middleLines = append(middleLines, vBar+line+strings.Repeat(" ", padding)+vBarRight)
-	}
-
-	// Bottom border
-	bottomBorder := borderStyle.Render(border.BottomLeft) +
-		strings.Repeat(hBar, innerWidth) +
-		borderStyle.Render(border.BottomRight)
-
-	return topBorder + "\n" + strings.Join(middleLines, "\n") + "\n" + bottomBorder
+	return frame.New(
+		frame.WithStyles(frame.Styles{
+			Focused: frame.StyleState{
+				Title:  m.styles.PanelTitle,
+				Border: m.styles.FocusBorder,
+			},
+			Blurred: frame.StyleState{
+				Title:  m.styles.PanelTitle,
+				Border: m.styles.Border,
+			},
+		}),
+		frame.WithTitle("Job Data (JSON)"),
+		frame.WithTitlePadding(0),
+		frame.WithMeta(m.styles.Muted.Render("Esc to close")),
+		frame.WithMetaPadding(0),
+		frame.WithContent(strings.Join(contentLines, "\n")),
+		frame.WithPadding(jobDetailPanelPadding),
+		frame.WithSize(m.rightWidth, m.height),
+		frame.WithFocused(m.focusRight),
+	).View()
 }
 
 // formatTimestamp formats a Unix timestamp.

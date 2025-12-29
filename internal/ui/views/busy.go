@@ -10,8 +10,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
+	"github.com/kpumuk/lazykiq/internal/ui/components/frame"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
-	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/table"
 	"github.com/kpumuk/lazykiq/internal/ui/format"
@@ -378,15 +378,25 @@ func (b *Busy) renderJobsBox() string {
 	// Get table content
 	content := b.table.View()
 
-	box := jobsbox.New(
-		jobsbox.WithStyles(jobsbox.Styles{
-			Title:  b.styles.Title,
-			Border: b.styles.FocusBorder,
+	box := frame.New(
+		frame.WithStyles(frame.Styles{
+			Focused: frame.StyleState{
+				Title:  b.styles.Title,
+				Border: b.styles.FocusBorder,
+			},
+			Blurred: frame.StyleState{
+				Title:  b.styles.Title,
+				Border: b.styles.BorderStyle,
+			},
 		}),
-		jobsbox.WithTitle(title),
-		jobsbox.WithMeta(meta),
-		jobsbox.WithContent(content),
-		jobsbox.WithSize(b.width, boxHeight),
+		frame.WithTitle(title),
+		frame.WithTitlePadding(0),
+		frame.WithMeta(meta),
+		frame.WithContent(content),
+		frame.WithPadding(1),
+		frame.WithSize(b.width, boxHeight),
+		frame.WithMinHeight(5),
+		frame.WithFocused(true),
 	)
 	return box.View()
 }

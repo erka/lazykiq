@@ -273,8 +273,26 @@ func (a App) View() tea.View {
 	// If there's a connection error, overlay the error popup
 	if a.connectionError != nil {
 		a.errorPopup.SetMessage(a.connectionError.Error())
-		a.errorPopup.SetBackground(content)
-		content = a.errorPopup.View()
+		errorPanel := a.errorPopup.View()
+		if errorPanel != "" {
+			panelWidth := lipgloss.Width(errorPanel)
+			panelHeight := lipgloss.Height(errorPanel)
+			contentHeight := a.height - a.metrics.Height() - a.navbar.Height()
+			panelX := max((a.width-panelWidth)/2, 0)
+			panelY := a.metrics.Height() + max((contentHeight-panelHeight)/2, 0)
+
+			canvas := lipgloss.NewCanvas(
+				lipgloss.NewLayer(lipgloss.JoinVertical(
+					lipgloss.Left,
+					a.metrics.View(),
+					content,
+					a.navbar.View(),
+				)),
+				lipgloss.NewLayer(errorPanel).X(panelX).Y(panelY).Z(1),
+			)
+			v.SetContent(canvas.Render())
+			return v
+		}
 	}
 
 	// Build the layout: metrics (top) + content (middle) + navbar (bottom)

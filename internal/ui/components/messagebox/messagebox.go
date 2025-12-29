@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/kpumuk/lazykiq/internal/ui/components/frame"
 )
 
 // Styles holds the styles needed by the message box.
@@ -122,55 +123,43 @@ func (m Model) Message() string {
 // View renders the message box.
 func (m Model) View() string {
 	height := max(m.height, 5)
+	innerWidth := max(m.width-2, 0)
+	contentHeight := max(height-2, 0)
 
-	border := lipgloss.RoundedBorder()
-
-	// Top border with title
-	titleText := " " + m.title + " "
-	styledTitle := m.styles.Title.Render(titleText)
-	titleWidth := lipgloss.Width(styledTitle)
-	innerWidth := m.width - 2
-	leftPad := 1
-	rightPad := max(innerWidth-titleWidth-leftPad, 0)
-
-	hBar := m.styles.Border.Render(border.Top)
-	topBorder := m.styles.Border.Render(border.TopLeft) +
-		strings.Repeat(hBar, leftPad) +
-		styledTitle +
-		strings.Repeat(hBar, rightPad) +
-		m.styles.Border.Render(border.TopRight)
-
-	// Content with side borders - centered message
-	vBar := m.styles.Border.Render(border.Left)
-	vBarRight := m.styles.Border.Render(border.Right)
-
-	contentHeight := height - 2 // minus top and bottom borders
-	middleLines := make([]string, 0, contentHeight)
-
-	// Center the message vertically
+	// Center the message vertically within contentHeight
+	lines := make([]string, contentHeight)
 	msgText := m.styles.Muted.Render(m.message)
 	msgWidth := lipgloss.Width(msgText)
 	centerRow := contentHeight / 2
 
 	for i := range contentHeight {
-		var line string
 		if i == centerRow {
-			// Center horizontally
 			leftPadding := max((innerWidth-msgWidth)/2, 0)
 			rightPadding := max(innerWidth-leftPadding-msgWidth, 0)
-			line = strings.Repeat(" ", leftPadding) + msgText + strings.Repeat(" ", rightPadding)
+			lines[i] = strings.Repeat(" ", leftPadding) + msgText + strings.Repeat(" ", rightPadding)
 		} else {
-			line = strings.Repeat(" ", innerWidth)
+			lines[i] = strings.Repeat(" ", innerWidth)
 		}
-		middleLines = append(middleLines, vBar+line+vBarRight)
 	}
 
-	// Bottom border
-	bottomBorder := m.styles.Border.Render(border.BottomLeft) +
-		strings.Repeat(hBar, innerWidth) +
-		m.styles.Border.Render(border.BottomRight)
+	box := frame.New(
+		frame.WithStyles(frame.Styles{
+			Focused: frame.StyleState{
+				Title:  m.styles.Title,
+				Border: m.styles.Border,
+			},
+			Blurred: frame.StyleState{
+				Title:  m.styles.Title,
+				Border: m.styles.Border,
+			},
+		}),
+		frame.WithTitle(m.title),
+		frame.WithTitlePadding(1),
+		frame.WithContent(strings.Join(lines, "\n")),
+		frame.WithSize(m.width, height),
+	)
 
-	return topBorder + "\n" + strings.Join(middleLines, "\n") + "\n" + bottomBorder
+	return box.View()
 }
 
 // Render is a convenience function for one-off rendering without creating a Model.

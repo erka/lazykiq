@@ -9,8 +9,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
 	"github.com/kpumuk/lazykiq/internal/ui/components/filterinput"
+	"github.com/kpumuk/lazykiq/internal/ui/components/frame"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
-	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/table"
 	"github.com/kpumuk/lazykiq/internal/ui/format"
@@ -329,15 +329,25 @@ func (s *Scheduled) renderJobsBox() string {
 	// Get table content
 	content := s.filter.View() + "\n" + s.table.View()
 
-	box := jobsbox.New(
-		jobsbox.WithStyles(jobsbox.Styles{
-			Title:  s.styles.Title,
-			Border: s.styles.FocusBorder,
+	box := frame.New(
+		frame.WithStyles(frame.Styles{
+			Focused: frame.StyleState{
+				Title:  s.styles.Title,
+				Border: s.styles.FocusBorder,
+			},
+			Blurred: frame.StyleState{
+				Title:  s.styles.Title,
+				Border: s.styles.BorderStyle,
+			},
 		}),
-		jobsbox.WithTitle("Scheduled"),
-		jobsbox.WithMeta(meta),
-		jobsbox.WithContent(content),
-		jobsbox.WithSize(s.width, s.height),
+		frame.WithTitle("Scheduled"),
+		frame.WithTitlePadding(0),
+		frame.WithMeta(meta),
+		frame.WithContent(content),
+		frame.WithPadding(1),
+		frame.WithSize(s.width, s.height),
+		frame.WithMinHeight(5),
+		frame.WithFocused(true),
 	)
 	return box.View()
 }

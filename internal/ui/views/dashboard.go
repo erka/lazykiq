@@ -12,7 +12,7 @@ import (
 	tslc "github.com/NimbleMarkets/ntcharts/linechart/timeserieslinechart"
 	oldgloss "github.com/charmbracelet/lipgloss"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
-	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
+	"github.com/kpumuk/lazykiq/internal/ui/components/frame"
 	"github.com/kpumuk/lazykiq/internal/ui/format"
 )
 
@@ -283,40 +283,52 @@ func (d *Dashboard) renderRedisInfoLine() string {
 
 func (d *Dashboard) renderRealtimeBox(height int) string {
 	meta := d.styles.MetricLabel.Render("interval: ") + d.styles.MetricValue.Render(fmt.Sprintf("%ds", d.realtimeInterval))
-	border := d.styles.BorderStyle
-	if d.focusedPane == dashboardPaneRealtime {
-		border = d.styles.FocusBorder
-	}
 	content := d.renderRealtimeContent(height - 2)
-	box := jobsbox.New(
-		jobsbox.WithStyles(jobsbox.Styles{
-			Title:  d.styles.Title,
-			Border: border,
+	box := frame.New(
+		frame.WithStyles(frame.Styles{
+			Focused: frame.StyleState{
+				Title:  d.styles.Title,
+				Border: d.styles.FocusBorder,
+			},
+			Blurred: frame.StyleState{
+				Title:  d.styles.Title,
+				Border: d.styles.BorderStyle,
+			},
 		}),
-		jobsbox.WithTitle("Dashboard"),
-		jobsbox.WithMeta(meta),
-		jobsbox.WithContent(content),
-		jobsbox.WithSize(d.width, height),
+		frame.WithTitle("Dashboard"),
+		frame.WithTitlePadding(0),
+		frame.WithMeta(meta),
+		frame.WithContent(content),
+		frame.WithPadding(1),
+		frame.WithSize(d.width, height),
+		frame.WithMinHeight(5),
+		frame.WithFocused(d.focusedPane == dashboardPaneRealtime),
 	)
 	return box.View()
 }
 
 func (d *Dashboard) renderHistoryBox(height int) string {
 	meta := d.styles.MetricLabel.Render("range: ") + d.styles.MetricValue.Render(d.historyRangeLabel())
-	border := d.styles.BorderStyle
-	if d.focusedPane == dashboardPaneHistory {
-		border = d.styles.FocusBorder
-	}
 	content := d.renderHistoryContent(height - 2)
-	box := jobsbox.New(
-		jobsbox.WithStyles(jobsbox.Styles{
-			Title:  d.styles.Title,
-			Border: border,
+	box := frame.New(
+		frame.WithStyles(frame.Styles{
+			Focused: frame.StyleState{
+				Title:  d.styles.Title,
+				Border: d.styles.FocusBorder,
+			},
+			Blurred: frame.StyleState{
+				Title:  d.styles.Title,
+				Border: d.styles.BorderStyle,
+			},
 		}),
-		jobsbox.WithTitle("History"),
-		jobsbox.WithMeta(meta),
-		jobsbox.WithContent(content),
-		jobsbox.WithSize(d.width, height),
+		frame.WithTitle("History"),
+		frame.WithTitlePadding(0),
+		frame.WithMeta(meta),
+		frame.WithContent(content),
+		frame.WithPadding(1),
+		frame.WithSize(d.width, height),
+		frame.WithMinHeight(5),
+		frame.WithFocused(d.focusedPane == dashboardPaneHistory),
 	)
 	return box.View()
 }

@@ -9,8 +9,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/kpumuk/lazykiq/internal/sidekiq"
 	"github.com/kpumuk/lazykiq/internal/ui/components/filterinput"
+	"github.com/kpumuk/lazykiq/internal/ui/components/frame"
 	"github.com/kpumuk/lazykiq/internal/ui/components/jobdetail"
-	"github.com/kpumuk/lazykiq/internal/ui/components/jobsbox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/messagebox"
 	"github.com/kpumuk/lazykiq/internal/ui/components/table"
 	"github.com/kpumuk/lazykiq/internal/ui/format"
@@ -347,15 +347,25 @@ func (r *Retries) renderJobsBox() string {
 	// Get table content
 	content := r.filter.View() + "\n" + r.table.View()
 
-	box := jobsbox.New(
-		jobsbox.WithStyles(jobsbox.Styles{
-			Title:  r.styles.Title,
-			Border: r.styles.FocusBorder,
+	box := frame.New(
+		frame.WithStyles(frame.Styles{
+			Focused: frame.StyleState{
+				Title:  r.styles.Title,
+				Border: r.styles.FocusBorder,
+			},
+			Blurred: frame.StyleState{
+				Title:  r.styles.Title,
+				Border: r.styles.BorderStyle,
+			},
 		}),
-		jobsbox.WithTitle("Retries"),
-		jobsbox.WithMeta(meta),
-		jobsbox.WithContent(content),
-		jobsbox.WithSize(r.width, r.height),
+		frame.WithTitle("Retries"),
+		frame.WithTitlePadding(0),
+		frame.WithMeta(meta),
+		frame.WithContent(content),
+		frame.WithPadding(1),
+		frame.WithSize(r.width, r.height),
+		frame.WithMinHeight(5),
+		frame.WithFocused(true),
 	)
 	return box.View()
 }
