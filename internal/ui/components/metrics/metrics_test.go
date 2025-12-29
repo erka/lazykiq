@@ -8,11 +8,10 @@ import (
 
 func testStyles() Styles {
 	return Styles{
-		Bar:       lipgloss.NewStyle(),
-		Fill:      lipgloss.NewStyle(),
-		Label:     lipgloss.NewStyle(),
-		Value:     lipgloss.NewStyle(),
-		Separator: lipgloss.NewStyle(),
+		Bar:   lipgloss.NewStyle(),
+		Fill:  lipgloss.NewStyle(),
+		Label: lipgloss.NewStyle(),
+		Value: lipgloss.NewStyle(),
 	}
 }
 
