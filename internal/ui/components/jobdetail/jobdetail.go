@@ -204,26 +204,26 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		case key.Matches(msg, m.KeyMap.LineUp):
 			if m.focusRight {
-				m.rightYOffset = clampInt(m.rightYOffset-1, 0, m.maxRightYOffset())
+				m.rightYOffset = clampZeroMax(m.rightYOffset-1, m.maxRightYOffset())
 			} else {
-				m.leftYOffset = clampInt(m.leftYOffset-1, 0, m.maxLeftYOffset())
+				m.leftYOffset = clampZeroMax(m.leftYOffset-1, m.maxLeftYOffset())
 			}
 
 		case key.Matches(msg, m.KeyMap.LineDown):
 			if m.focusRight {
-				m.rightYOffset = clampInt(m.rightYOffset+1, 0, m.maxRightYOffset())
+				m.rightYOffset = clampZeroMax(m.rightYOffset+1, m.maxRightYOffset())
 			} else {
-				m.leftYOffset = clampInt(m.leftYOffset+1, 0, m.maxLeftYOffset())
+				m.leftYOffset = clampZeroMax(m.leftYOffset+1, m.maxLeftYOffset())
 			}
 
 		case key.Matches(msg, m.KeyMap.ScrollLeft):
 			if m.focusRight {
-				m.rightXOffset = clampInt(m.rightXOffset-4, 0, m.maxRightXOffset())
+				m.rightXOffset = clampZeroMax(m.rightXOffset-4, m.maxRightXOffset())
 			}
 
 		case key.Matches(msg, m.KeyMap.ScrollRight):
 			if m.focusRight {
-				m.rightXOffset = clampInt(m.rightXOffset+4, 0, m.maxRightXOffset())
+				m.rightXOffset = clampZeroMax(m.rightXOffset+4, m.maxRightXOffset())
 			}
 
 		case key.Matches(msg, m.KeyMap.GotoTop):
@@ -302,12 +302,12 @@ func (m Model) maxRightXOffset() int {
 	return maxX
 }
 
-func clampInt(value, min, max int) int {
-	if value < min {
-		return min
+func clampZeroMax(value, maxValue int) int {
+	if value < 0 {
+		return 0
 	}
-	if value > max {
-		return max
+	if value > maxValue {
+		return maxValue
 	}
 	return value
 }

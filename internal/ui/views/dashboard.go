@@ -165,9 +165,7 @@ func (d *Dashboard) adjustFocusedPane(delta int) (View, tea.Cmd) {
 	switch d.focusedPane {
 	case dashboardPaneRealtime:
 		next := max(d.realtimeInterval+delta, 5)
-		if next > 20 {
-			next = 20
-		}
+		next = min(next, 20)
 		if next != d.realtimeInterval {
 			d.realtimeInterval = next
 			d.tickID++

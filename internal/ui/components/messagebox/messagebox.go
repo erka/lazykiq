@@ -145,7 +145,7 @@ func (m Model) View() string {
 	vBarRight := m.styles.Border.Render(border.Right)
 
 	contentHeight := height - 2 // minus top and bottom borders
-	var middleLines []string
+	middleLines := make([]string, 0, contentHeight)
 
 	// Center the message vertically
 	msgText := m.styles.Muted.Render(m.message)

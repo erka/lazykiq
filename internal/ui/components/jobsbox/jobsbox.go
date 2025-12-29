@@ -156,8 +156,8 @@ func (m Model) View() string {
 	// Split content into lines
 	lines := strings.Split(m.content, "\n")
 
-	var middleLines []string
 	contentHeight := height - 2 // minus top and bottom borders
+	middleLines := make([]string, 0, contentHeight)
 
 	for i := range contentHeight {
 		var line string
