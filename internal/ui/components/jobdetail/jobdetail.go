@@ -204,56 +204,26 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		case key.Matches(msg, m.KeyMap.LineUp):
 			if m.focusRight {
-				m.rightYOffset--
-				if m.rightYOffset < 0 {
-					m.rightYOffset = 0
-				}
+				m.rightYOffset = clampInt(m.rightYOffset-1, 0, m.maxRightYOffset())
 			} else {
-				m.leftYOffset--
-				if m.leftYOffset < 0 {
-					m.leftYOffset = 0
-				}
+				m.leftYOffset = clampInt(m.leftYOffset-1, 0, m.maxLeftYOffset())
 			}
 
 		case key.Matches(msg, m.KeyMap.LineDown):
 			if m.focusRight {
-				maxY := len(m.jsonLines) - m.panelHeight
-				if maxY < 0 {
-					maxY = 0
-				}
-				m.rightYOffset++
-				if m.rightYOffset > maxY {
-					m.rightYOffset = maxY
-				}
+				m.rightYOffset = clampInt(m.rightYOffset+1, 0, m.maxRightYOffset())
 			} else {
-				maxY := m.countLeftPanelLines() - m.panelHeight
-				if maxY < 0 {
-					maxY = 0
-				}
-				m.leftYOffset++
-				if m.leftYOffset > maxY {
-					m.leftYOffset = maxY
-				}
+				m.leftYOffset = clampInt(m.leftYOffset+1, 0, m.maxLeftYOffset())
 			}
 
 		case key.Matches(msg, m.KeyMap.ScrollLeft):
 			if m.focusRight {
-				m.rightXOffset -= 4
-				if m.rightXOffset < 0 {
-					m.rightXOffset = 0
-				}
+				m.rightXOffset = clampInt(m.rightXOffset-4, 0, m.maxRightXOffset())
 			}
 
 		case key.Matches(msg, m.KeyMap.ScrollRight):
 			if m.focusRight {
-				maxX := m.maxJSONWidth - m.rightWidth + 2
-				if maxX < 0 {
-					maxX = 0
-				}
-				m.rightXOffset += 4
-				if m.rightXOffset > maxX {
-					m.rightXOffset = maxX
-				}
+				m.rightXOffset = clampInt(m.rightXOffset+4, 0, m.maxRightXOffset())
 			}
 
 		case key.Matches(msg, m.KeyMap.GotoTop):
@@ -265,17 +235,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		case key.Matches(msg, m.KeyMap.GotoBottom):
 			if m.focusRight {
-				maxY := len(m.jsonLines) - m.panelHeight
-				if maxY < 0 {
-					maxY = 0
-				}
-				m.rightYOffset = maxY
+				m.rightYOffset = m.maxRightYOffset()
 			} else {
-				maxY := m.countLeftPanelLines() - m.panelHeight
-				if maxY < 0 {
-					maxY = 0
-				}
-				m.leftYOffset = maxY
+				m.leftYOffset = m.maxLeftYOffset()
 			}
 
 		case key.Matches(msg, m.KeyMap.Home):
@@ -285,11 +247,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		case key.Matches(msg, m.KeyMap.End):
 			if m.focusRight {
-				maxX := m.maxJSONWidth - m.rightWidth + 2
-				if maxX < 0 {
-					maxX = 0
-				}
-				m.rightXOffset = maxX
+				m.rightXOffset = m.maxRightXOffset()
 			}
 		}
 	}
@@ -326,31 +284,55 @@ func (m *Model) updateDimensions() {
 	}
 }
 
+func (m Model) maxLeftYOffset() int {
+	maxY := m.countLeftPanelLines() - m.panelHeight
+	if maxY < 0 {
+		return 0
+	}
+	return maxY
+}
+
+func (m Model) maxRightYOffset() int {
+	maxY := len(m.jsonLines) - m.panelHeight
+	if maxY < 0 {
+		return 0
+	}
+	return maxY
+}
+
+func (m Model) maxRightXOffset() int {
+	maxX := m.maxJSONWidth - m.rightWidth + 4 // 4 = 2 padding + 2 border
+	if maxX < 0 {
+		return 0
+	}
+	return maxX
+}
+
+func clampInt(value, min, max int) int {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
 // clampScroll ensures scroll offsets are in valid range.
 func (m *Model) clampScroll() {
 	// Left panel - count actual display lines (with wrapping)
-	leftLineCount := m.countLeftPanelLines()
-	maxLeftY := leftLineCount - m.panelHeight
-	if maxLeftY < 0 {
-		maxLeftY = 0
-	}
+	maxLeftY := m.maxLeftYOffset()
 	if m.leftYOffset > maxLeftY {
 		m.leftYOffset = maxLeftY
 	}
 
 	// Right panel
-	maxRightY := len(m.jsonLines) - m.panelHeight
-	if maxRightY < 0 {
-		maxRightY = 0
-	}
+	maxRightY := m.maxRightYOffset()
 	if m.rightYOffset > maxRightY {
 		m.rightYOffset = maxRightY
 	}
 
-	maxRightX := m.maxJSONWidth - m.rightWidth + 2
-	if maxRightX < 0 {
-		maxRightX = 0
-	}
+	maxRightX := m.maxRightXOffset()
 	if m.rightXOffset > maxRightX {
 		m.rightXOffset = maxRightX
 	}
